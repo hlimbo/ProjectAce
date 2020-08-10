@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/MainMenu.unity
+    guid: 00253a391c84cbb46a9ed10fd534664c
+  - enabled: 1
+    path: Assets/Scenes/SampleScene.unity
+    guid: 2cda990e2423bbf4892e6590ba056729
+  - enabled: 0
+    path: Assets/Mirror/Examples/Basic/Scenes/Example.unity
+    guid: b30904751905d3f4dacde62ac85ec7c2
+  - enabled: 0
+    path: Assets/Scenes/Experiments/Scene_A.unity
+    guid: ea52ef97ea292444e9a6f85cb47decd3
+  - enabled: 0
+    path: Assets/Scenes/Experiments/Scene_B.unity
+    guid: b592ca0775b54ae469d5e75a5d84d121
+  - enabled: 0
+    path: Assets/Scenes/Experiments/Score_Counter_Scene.unity
+    guid: 2a9ece96430fd2b47bb5b8736625d1be
+  - enabled: 0
+    path: Assets/Scenes/Experiments/Turn_System_Scene.unity
+    guid: 4b90355a8b13e714089e9ee5e5d0644c
+  - enabled: 0
+    path: Assets/Mirror/Examples/Room/Scenes/OfflineScene.unity
+    guid: 9e6f14982412b2545a0911ebaaa46a23
+  - enabled: 0
+    path: Assets/Mirror/Examples/Room/Scenes/OnlineScene.unity
+    guid: d7a6763559b31854586c9e49916273ef
+  - enabled: 0
+    path: Assets/Mirror/Examples/Room/Scenes/RoomScene.unity
+    guid: 48478f4d522f96945b8396f376299d3a
+  m_configObjects: {}
