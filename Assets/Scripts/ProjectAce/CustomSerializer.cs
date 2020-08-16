@@ -1,4 +1,5 @@
 ﻿using Mirror;
+using System.Text;
 
 namespace ProjectAce
 {
@@ -20,6 +21,21 @@ namespace ProjectAce
                 value = (ValueType)reader.ReadInt32()
             };
 
+        }
+
+        public static void WriteNameTag(this NetworkWriter writer, NameTag nameTag)
+        {
+            writer.WriteBoolean(nameTag.isUserDefined);
+            writer.WriteString(nameTag.name);
+        }
+
+        public static NameTag ReadNameTag(this NetworkReader reader)
+        {
+            return new NameTag
+            {
+                isUserDefined = reader.ReadBoolean(),
+                name = reader.ReadString()
+            };
         }
     }
 }

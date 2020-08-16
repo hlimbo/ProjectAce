@@ -42,15 +42,52 @@ public class ReadyPanel : NetworkBehaviour
         }
     }
 
-    private NetworkPlayerController networkPlayerController;
+    // the purpose of this flag is to reset the player's name if they attempt to duplicate any other player's name
+    [SyncVar(hook = nameof(OnNameChangeFlagTriggered))]
+    private bool nameChangeFlag;
+    [SyncVar(hook = nameof(OnClientNameChanged))]
+    private NameTag playerName;
 
-    [SyncVar(hook = nameof(OnClientNameChange))]
-    public string playerName;
-
-    private void OnClientNameChange(string oldName, string newName)
+    private void OnNameChangeFlagTriggered(bool _, bool newFlag)
     {
-        Debug.Log("NEW NAME:" + newName);
-        playerText.text = newName;
+        if (playerText.gameObject.activeInHierarchy)
+        {
+            playerText.text = playerName.name;
+        }
+
+        if (playerNameInput.gameObject.activeInHierarchy)
+        {
+            if (playerName.isUserDefined)
+            {
+                playerNameInput.text = playerName.name;
+            }
+            else
+            {
+                playerNameInput.text = "";
+                playerNameInput.transform.Find("Placeholder").GetComponent<Text>().text = playerName.name;
+            }
+        }
+    }
+
+    private void OnClientNameChanged(NameTag _, NameTag newTag)
+    {
+        if (playerText.gameObject.activeInHierarchy)
+        {
+            playerText.text = newTag.name;
+        }
+
+        if (playerNameInput.gameObject.activeInHierarchy)
+        {
+            if (playerName.isUserDefined)
+            {
+                playerNameInput.text = newTag.name;
+            }
+            else
+            {
+                playerNameInput.text = "";
+                playerNameInput.transform.Find("Placeholder").GetComponent<Text>().text = newTag.name;
+            }
+        }
     }
 
     private void Awake()
@@ -71,13 +108,18 @@ public class ReadyPanel : NetworkBehaviour
     {
         base.OnStartServer();
         connectionId = connectionToClient.connectionId;
+        if(Manager.playerNames.ContainsKey(connectionId))
+        {
+            Debug.Log("REadyPanel on start server with name! " + Manager.playerNames[connectionId].name);
+            playerName = Manager.playerNames[connectionId];
+        }
     }
 
     public override void OnStartAuthority()
     {
         base.OnStartAuthority();
 
-        playerText.fontStyle = FontStyle.Bold;
+        playerText.gameObject.SetActive(false);
 
         readyButton.onClick.AddListener(CmdToggleReady);
         startGameButton.onClick.AddListener(CmdStartGame);
@@ -92,8 +134,7 @@ public class ReadyPanel : NetworkBehaviour
         base.OnStartClient();
 
         transform.SetParent(parentTransform);
-        var rectTransform = GetComponent<RectTransform>();
-        AnchorPresetsUtils.AssignAnchor(AnchorPresets.TOP_LEFT, ref rectTransform);
+        transform.localScale = new Vector3(0.8f, 0.8f, 1f);
 
         if(!hasAuthority)
         {
@@ -126,50 +167,61 @@ public class ReadyPanel : NetworkBehaviour
 
     private void SetPlayerName()
     {
-        // hack
-        if(networkPlayerController == null)
-        {
-            var npcs = FindObjectsOfType<NetworkPlayerController>();
-            foreach (var npc in npcs)
-            {
-                if (npc.hasAuthority)
-                {
-                    networkPlayerController = npc;
-                    break;
-                }
-            }
-        }
-
-        Debug.Log("SetPlayerName");
-        if(networkPlayerController != null)
-        {
-            Debug.Log("11Change name to " + playerNameInput.text);
-            networkPlayerController.CmdChangePlayerName(connectionId, playerNameInput.text);
-        }
+        CmdChangeName(playerNameInput.text);
     }
 
     private void SetPlayerName(string name)
     {
-        // hack
-        if (networkPlayerController == null)
+        CmdChangeName(name);
+    }
+
+    [Command]
+    private void CmdChangeName(string name)
+    {
+        // If person attempts to assign themselves a name that is already set to another player, prevent it by setting their name to a default name
+        bool isNameTaken = false;
+        foreach(var kvp in Manager.playerNames)
         {
-            var npcs = FindObjectsOfType<NetworkPlayerController>();
-            foreach (var npc in npcs)
+            int connId = kvp.Key;
+            if (connId == connectionId)
             {
-                if (npc.hasAuthority)
-                {
-                    networkPlayerController = npc;
-                    break;
-                }
+                // check only every player name excluding the current name the requesting player connectionId has
+                continue;
+            }
+
+            string usedName = kvp.Value.name;
+            if(name.Equals(usedName))
+            {
+                Debug.Log("name already taken: " + name);
+                isNameTaken = true;
+                break;
             }
         }
 
-        Debug.Log("SetPlayerName2");
-        if (networkPlayerController != null)
+        if (isNameTaken || name.Length == 0)
         {
-            Debug.Log("22Change name to " + name);
-            networkPlayerController.CmdChangePlayerName(connectionId, name);
+            // Set default name
+            Manager.playerNames[connectionId] = new NameTag
+            {
+                name = connectionId == 0 ? "Leader" : string.Format("Player{0}", connectionId),
+                isUserDefined = false
+            };
+
+            playerName = Manager.playerNames[connectionId];
         }
+        else if(name.Length > 0)
+        {
+            Manager.playerNames[connectionId] = new NameTag
+            {
+                name = name,
+                isUserDefined = true
+            };
+
+            playerName = Manager.playerNames[connectionId];
+        }
+
+        // used to trigger on the client side when a name gets updated
+        nameChangeFlag = !nameChangeFlag;
     }
 
     [Command]

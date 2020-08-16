@@ -18,7 +18,7 @@ public class ProjectAceNetworkManager : NetworkManager
         GAME_END
     };
 
-    public GameState currentState;
+    public static GameState currentState;
 
     [SerializeField]
     private int startingCardCountPerPlayer = 8;
@@ -44,7 +44,7 @@ public class ProjectAceNetworkManager : NetworkManager
     public readonly Dictionary<int, PlayerPanel> playerPanels = new Dictionary<int, PlayerPanel>();
 
     // Maintained server-side only
-    public readonly Dictionary<int, string> playerNames = new Dictionary<int, string>();
+    public readonly Dictionary<int, NameTag> playerNames = new Dictionary<int, NameTag>();
 
     private int drawPileCount;
 
@@ -78,8 +78,6 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.Awake();
         Utils.LoadCardAssets();
-        SceneManager.sceneLoaded += ClearStaleReferences;
-        SceneManager.sceneLoaded += InitializeDealer;
         currentState = GameState.GAME_LAUNCH;
 
         if(isHeadless)
@@ -93,23 +91,36 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.OnServerSceneChanged(sceneName);
         Debug.LogFormat("[Server]: Scene changed to {0}", sceneName);
-        Debug.Log("Number of managed gameplay related objects");
-        Debug.LogFormat("Client Connections: {0}", NetworkServer.connections.Count);
-        Debug.LogFormat("NetworkPlayerControllers: {0}", networkPlayerControllers.Count);
-        Debug.LogFormat("PlayerPanels: {0}", playerPanels.Count);
-        Debug.LogFormat("ReadyPanels: {0}", readyPanels.Count);
+        Debug.LogFormat("[Server]: OnlineScene: {0}", onlineScene);
+        Debug.LogFormat("[Server]: OnServerSceneChanged current game state: {0}", currentState);
 
-    }
-
-    private void ClearStaleReferences(Scene scene, LoadSceneMode mode)
-    {
-        if(scene.path.Equals(offlineScene))
+        // DEBUGGING
+        Debug.LogFormat("[Server]: playerNames count: {0}", playerNames.Count);
+        foreach(var name in playerNames.Values)
         {
-            Debug.Log("[Server]: Clearing Stale References when in offlineScene: " + offlineScene);
-            ResetGame();
+            Debug.LogFormat("[Server]: playerName {0}", name);
         }
+
+        if (onlineScene.Equals(sceneName))
+        {
+            Debug.LogFormat("[Server]: Current State: {0}", currentState);
+            if(currentState == GameState.GAME_END)
+            {
+                ResetGame();
+                currentState = GameState.LOBBY;
+                if (NetworkServer.connections.Count > 0)
+                {
+                    gameLeaderIndex = NetworkServer.connections.Keys.Min();
+                }
+            }
+
+            InitializeDealer();
+        }
+
     }
 
+    // TODO: how to properly clean up these references?
+    // come back here after work to see If I can get play again to function properly!
     private void ResetGame()
     {
         playerPanels.Clear();
@@ -119,14 +130,13 @@ public class ProjectAceNetworkManager : NetworkManager
         currentTurnIndex = 0;
         animIndex = 0;
         dealer = null;
-        currentState = GameState.GAME_LAUNCH;
-        playerNames.Clear();
+        //playerNames.Clear();
         gameLeaderIndex = 0;
     }
 
-    private void InitializeDealer(Scene scene, LoadSceneMode mode)
+    private void InitializeDealer()
     {
-        if(scene.path.Equals(onlineScene))
+        if(dealer == null)
         {
             dealer = Instantiate(dealerPrefab)?.GetComponent<Dealer>();
             dealer.PrepareDeck();
@@ -219,8 +229,6 @@ public class ProjectAceNetworkManager : NetworkManager
         }
 
         networkPlayerControllers[conn.connectionId] = player.GetComponent<NetworkPlayerController>();
-        // default name
-        networkPlayerControllers[conn.connectionId].playerName = conn.connectionId == 0 ? "Leader" : string.Format("Player{0}", conn.connectionId);
     }
 
     // called n times where n = number of clients connected which means calling NetworkServer.Spawn will spawn the same number of objects on 1 client and the next
@@ -229,14 +237,14 @@ public class ProjectAceNetworkManager : NetworkManager
         base.OnServerReady(conn);
         if(SceneManager.GetActiveScene().path.Equals(onlineScene))
         {
-            var panel = Instantiate(readyPrefab);
-            NetworkServer.Spawn(panel, conn);
-            readyPanels[conn.connectionId] = panel.GetComponent<ReadyPanel>();
-            DetermineIfAllClientsAreReady();
-            turnOrder.Add(conn.connectionId);
-
-            // default name
-            readyPanels[conn.connectionId].playerName = conn.connectionId == 0 ? "Leader" : string.Format("Player{0}", conn.connectionId);
+            if(currentState == GameState.LOBBY)
+            {
+                var panel = Instantiate(readyPrefab);
+                NetworkServer.Spawn(panel, conn);
+                readyPanels[conn.connectionId] = panel.GetComponent<ReadyPanel>();
+                DetermineIfAllClientsAreReady();
+                turnOrder.Add(conn.connectionId);
+            }
         }
     }
 
@@ -259,18 +267,14 @@ public class ProjectAceNetworkManager : NetworkManager
                 waitingOnHostPanel?.SetActive(false);
                 playAgainPanel.gameObject.SetActive(false);
             }
-
-            //Register OnHostPlayAgainButton for all clients on headless mode
-            if(isHeadless && optionsPanel != null)
-            {
-                networkPlayerControllers[conn.connectionId].playAgainButton = optionsPanel.transform.Find("PlayAgainButton")?.GetComponent<Button>();
-            }
         }
     }
 
     public override void OnServerDisconnect(NetworkConnection conn)
     {
         Debug.Log("[Server]: OnServerDisconnect removing connectionId: " + conn.connectionId);
+
+        playerNames.Remove(conn.connectionId);
 
         int oldConnectionId = turnOrder[currentTurnIndex];
         turnOrder.Remove(conn.connectionId);
@@ -319,18 +323,6 @@ public class ProjectAceNetworkManager : NetworkManager
                 dealer.AddCardsBackToDrawPile(cards);
                 OnServerUpdateDrawPileCount();
                 networkPlayerControllers.Remove(conn.connectionId);
-
-                // determine new game leader
-                if(networkPlayerControllers.Count > 0 && gameLeaderIndex == conn.connectionId)
-                {
-                    gameLeaderIndex = networkPlayerControllers.Keys.ToArray().Min();
-                }
-
-                // Reset game
-                if(isHeadless && networkPlayerControllers.Count == 0)
-                {
-                    ServerChangeScene(offlineScene);
-                }
             }
         }
         else
@@ -339,22 +331,16 @@ public class ProjectAceNetworkManager : NetworkManager
             if (networkPlayerControllers.ContainsKey(conn.connectionId))
             {
                 networkPlayerControllers.Remove(conn.connectionId);
-
-                // determine new game leader
-                if(networkPlayerControllers.Count > 0 && gameLeaderIndex == conn.connectionId)
-                {
-                    gameLeaderIndex = networkPlayerControllers.Keys.ToArray().Min();
-                }
-
-                // Reset game
-                if(isHeadless && networkPlayerControllers.Count == 0)
-                {
-                    ServerChangeScene(offlineScene);
-                }
             }
         }
 
-        if(currentState == GameState.GAME_END)
+        // determine new game leader
+        if (networkPlayerControllers.Count > 0 && gameLeaderIndex == conn.connectionId)
+        {
+            gameLeaderIndex = networkPlayerControllers.Keys.ToArray().Min();
+        }
+
+        if (currentState == GameState.GAME_END)
         {
             // if game leader index changes let the new leader be able to reset the game
             networkPlayerControllers[gameLeaderIndex].TargetHostEnablePlayAgainButton(NetworkServer.connections[gameLeaderIndex]);
@@ -376,6 +362,14 @@ public class ProjectAceNetworkManager : NetworkManager
             {
                 playerPanels.Remove(conn.connectionId);
             }
+        }
+
+        // Reset game
+        if (isHeadless && networkPlayerControllers.Count == 0)
+        {
+            currentState = GameState.GAME_END;
+            playerNames.Clear();
+            ServerChangeScene(onlineScene);
         }
 
         base.OnServerDisconnect(conn);
@@ -405,9 +399,9 @@ public class ProjectAceNetworkManager : NetworkManager
         foreach(var connection in NetworkServer.connections)
         {
             var panel = Instantiate(playerPanelPrefab);
-            NetworkServer.Spawn(panel, connection.Value);
             playerPanels[connection.Key] = panel.GetComponent<PlayerPanel>();
-            networkPlayerControllers[connection.Key].SetPlayerPanelNetId(playerPanels[connection.Key].netId);
+            playerPanels[connection.Key].SetNetworkPlayerControllerNetId(networkPlayerControllers[connection.Key].netId);
+            NetworkServer.Spawn(panel, connection.Value);
         }
 
         // Consider removing this later
@@ -426,7 +420,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 npc.myCards.Add(card);
             }
 
-            Debug.LogFormat("Player {0} cards count: {1}: ", clientConnectionId, npc.myCards.Count);
+            Debug.LogFormat("[Server]: Player {0} cards count: {1}: ", clientConnectionId, npc.myCards.Count);
 
             if(playerPanels.ContainsKey(clientConnectionId))
             {
@@ -528,6 +522,12 @@ public class ProjectAceNetworkManager : NetworkManager
                 turnOrder[k] = temp;
             }
         }
+
+        // debugging
+        for(int i = 0;i < turnOrder.Count;++i)
+        {
+            Debug.LogFormat("Turn {0} goes to player with connectionId {1}", i, turnOrder[i]);
+        }
     }
 
     public void StartGame()
@@ -552,9 +552,8 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public void PlayGameAgain()
     {
-        if(SceneManager.GetActiveScene().path.Equals(onlineScene))
+        if(currentState == GameState.GAME_END && SceneManager.GetActiveScene().path.Equals(onlineScene))
         {
-            currentState = GameState.LOBBY;
             ServerChangeScene(onlineScene);
         }
     }
@@ -566,7 +565,7 @@ public class ProjectAceNetworkManager : NetworkManager
             var networkPlayerController = networkPlayerControllers[clientConnectionId];
             if(networkPlayerController.myCards.Count == 0)
             {
-                networkPlayerControllers[clientConnectionId].RpcEnablePlayAgainPanel(clientConnectionId, networkPlayerController.playerName);
+                networkPlayerControllers[clientConnectionId].RpcEnablePlayAgainPanel(clientConnectionId, playerNames[clientConnectionId].name);
                 networkPlayerControllers[gameLeaderIndex].TargetHostEnablePlayAgainButton(NetworkServer.connections[gameLeaderIndex]);
                 currentState = GameState.GAME_END;
             }
@@ -665,6 +664,7 @@ public class ProjectAceNetworkManager : NetworkManager
         Debug.Log("[Server]: OnServerConnect");
         Debug.LogFormat("[Server]: Client connected! {0}", conn.connectionId);
 
+        // prevent more players from connecting to the server
         if(currentState == GameState.GAME_IN_PROGRESS || currentState == GameState.GAME_END)
         {
             Debug.Log("[Server]: Game is already in progress and cannot accept anymore players");

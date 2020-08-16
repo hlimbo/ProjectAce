@@ -22,6 +22,11 @@ public class NetworkPlayerController : NetworkBehaviour
     [SerializeField]
     private List<CardController> hand;
     private Transform faceUpHolder;
+    private Queue<GameObject> cardsToDraw = new Queue<GameObject>();
+    private Queue<Card> cardValuesToDraw = new Queue<Card>();
+    private bool isCoroutineRunning = false;
+    private Queue<GameObject> placeholders = new Queue<GameObject>();
+    private Transform drawPileGraphic;
 
     [System.Serializable]
     public class SyncListCards : SyncList<Card> { }
@@ -60,57 +65,6 @@ public class NetworkPlayerController : NetworkBehaviour
     // Is set by the server only when it is this player's turn
     private bool canEnableComboButton = false;
 
-    //  client side only
-    private Queue<GameObject> cardsToDraw = new Queue<GameObject>();
-    private Queue<Card> cardValuesToDraw = new Queue<Card>();
-    private bool isCoroutineRunning = false;
-    private Queue<GameObject> placeholders = new Queue<GameObject>();
-    private Transform drawPileGraphic;
-
-    [SyncVar]
-    public string playerName;
-
-    private ReadyPanel readyPanel;
-
-    [Command]
-    public void CmdChangePlayerName(int clientConnectionId, string name)
-    {
-        if(name.Length == 0)
-        {
-            // Set default name
-            playerName = connectionId == 0 ? "Leader" : string.Format("Player{0}", connectionId);
-        }
-        else
-        {
-            playerName = name;
-        }
-
-        Manager.playerNames[clientConnectionId] = playerName;
-
-        if(readyPanel == null)
-        {
-            if (Manager.readyPanels.ContainsKey(clientConnectionId))
-            {
-                readyPanel = Manager.readyPanels[clientConnectionId];
-            }
-        }
-
-        if(readyPanel != null)
-        {
-            readyPanel.playerName = playerName;
-        }
-    }
-
-    [SyncVar(hook = nameof(OnClientReceivePlayerPanelNetId))]
-    private uint playerPanelNetId;
-    private PlayerPanel playerPanel;
-
-    private void OnClientReceivePlayerPanelNetId(uint oldId, uint newId)
-    {
-        playerPanel = FindObjectsOfType<PlayerPanel>()
-            .Where(p => p.netId == newId).FirstOrDefault();
-    }
-
     private void Awake()
     {
         cardHandGroup = GameObject.Find("CardHandGroup");
@@ -131,8 +85,6 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         base.OnStartServer();
         connectionId = connectionToClient.connectionId;
-        // default name:
-        playerName = connectionId == 0 ? "Leader" : string.Format("Player{0}", connectionId);
     }
 
     public override void OnStartClient()
@@ -182,14 +134,24 @@ public class NetworkPlayerController : NetworkBehaviour
         myCards.Callback += OnClientMyCardsUpdated;
     }
 
-    public void NetworkPlayerController_EventEndTurn()
+    public void MoveCardsDown()
     {
-        foreach(var cardSelector in hand)
+        Debug.Log("MOVING CARDS DOWN!!!!!!! ON NPC EVENT END TURN");
+        foreach(var card in hand)
         {
-            if(cardSelector.IsRaised)
+            if(card.IsRaised)
             {
-                cardSelector.MoveBackToOriginalLocalPosition();
+                card.MoveBackToOriginalLocalPosition();
             }
+            card.DisableInteraction();
+        }
+    }
+
+    public void DisableCards()
+    {
+        foreach(var card in hand)
+        {
+            card.DisableInteraction();
         }
     }
 
@@ -316,6 +278,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
             placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
             placeholder.transform.SetParent(drawPileGraphic);
+            placeholder.transform.localScale = new Vector3(1f, 1f, 1f);
             var cardRt = placeholder.GetComponent<RectTransform>();
             cardRt.anchorMin = new Vector2(0.5f, 0.5f);
             cardRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -365,6 +328,7 @@ public class NetworkPlayerController : NetworkBehaviour
             var myColor = myNewCard.GetComponent<Image>().color;
             myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
             myNewCard.transform.SetParent(parent);
+            myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
 
             cardsToDraw.Enqueue(myNewCard);
             cardValuesToDraw.Enqueue(newCard);
@@ -567,6 +531,11 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         canEnableComboButton = true;
         endTurnButton.SetActive(true);
+
+        foreach(var card in hand)
+        {
+            card.ToggleClickHandlerBehaviour(true);
+        }
     }
 
     [TargetRpc]
@@ -702,22 +671,6 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             DrawCardsAnimation();
         }
-
-        // Check if cards need to be put down if not current turn
-        if(playerPanel == null || !playerPanel.IsMyTurn)
-        {
-            foreach (var card in hand)
-            {
-                card.DisableInteraction();
-            }
-        }
-        else
-        {
-            foreach(var card in hand)
-            {
-                card.ToggleClickHandlerBehaviour(true);
-            }
-        }
     }
 
     [Command]
@@ -725,11 +678,5 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         // will start timer if it is currently the player's turn
         Manager.CheckForTurn(connectionId);
-    }
-
-    [Server]
-    public void SetPlayerPanelNetId(uint panelNetId)
-    {
-        playerPanelNetId = panelNetId;
     }
 }

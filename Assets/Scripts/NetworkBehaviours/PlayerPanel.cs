@@ -82,6 +82,25 @@ public class PlayerPanel : NetworkBehaviour
 
     private static HashSet<AnchorPresets> takenPresets = new HashSet<AnchorPresets>();
 
+    [SyncVar(hook = nameof(OnClientNameChanged))]
+    private string playerName;
+
+    private void OnClientNameChanged(string _, string newName)
+    {
+        playerLabel.text = newName;
+    }
+
+    // Client-Side
+    [SyncVar(hook = nameof(OnClientReceiveNetworkPlayerControllerNetId))]
+    public uint networkPlayerControllerNetId;
+    private NetworkPlayerController networkPlayerController;
+
+    private void OnClientReceiveNetworkPlayerControllerNetId(uint _, uint newId)
+    {
+        networkPlayerController = FindObjectsOfType<NetworkPlayerController>()
+            .Where(npc => npc.netId == newId).FirstOrDefault();
+    }
+
     private void Awake()
     {
         playerLabel = transform.Find("PlayerLabel")?.GetComponent<Text>();
@@ -105,6 +124,12 @@ public class PlayerPanel : NetworkBehaviour
         base.OnStartServer();
         connectionId = connectionToClient.connectionId;
         initialTimeLeft = Manager.InitialTimeLeftPerPlayer;
+        isMyTurn = false;
+
+        if(Manager.playerNames.ContainsKey(connectionId))
+        {
+            playerName = Manager.playerNames[connectionId].name;
+        }
     }
 
     public override void OnStartClient()
@@ -112,6 +137,7 @@ public class PlayerPanel : NetworkBehaviour
         base.OnStartClient();
 
         transform.SetParent(uiCanvas);
+        transform.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f);
 
         // TODO: to support headless mode, remove the need to have client-side copy references of player panels
         if (isClientOnly)
@@ -121,9 +147,6 @@ public class PlayerPanel : NetworkBehaviour
 
         if (!hasAuthority)
         {
-            // connectionId == 0 means game client is the host of the server
-            playerLabel.text = (connectionId == 0) ? "Leader" : string.Format("Player{0}", connectionId);
-
             // Assigning Anchor Presets for opponent's player panel
             var allPresets = new AnchorPresets[]
             {
@@ -134,11 +157,9 @@ public class PlayerPanel : NetworkBehaviour
                 AnchorPresets.BOTTOM_RIGHT
             };
 
-            // TODO: client-side dependency that should be removed for headless mode support
-            // Think of a way to determine where the player panels should be placed server-side and by the time these client side panels
+            // TODO: Think of a way to determine where the player panels should be placed server-side and by the time these client side panels
             // spawn, the server will just give each panel instructions as where they will be placed on
-            List<AnchorPresets> takenPresets = Manager.playerPanels
-                .Select(kvp => kvp.Value)
+            List<AnchorPresets> takenPresets = FindObjectsOfType<PlayerPanel>()
                 .Where(p => p != this)
                 .Select(p => p.AnchorPreset)
                 .ToList();
@@ -155,7 +176,7 @@ public class PlayerPanel : NetworkBehaviour
                         // Hard code offset position for now
                         if(preset == AnchorPresets.TOP_RIGHT)
                         {
-                            rectTransform.anchoredPosition = new Vector2(-100f, 0f);
+                            rectTransform.anchoredPosition = new Vector2(-50f, 0f);
                         }
                         else
                         {
@@ -167,12 +188,6 @@ public class PlayerPanel : NetworkBehaviour
                 }
             }
         }
-
-        // Set player name ~ this one works because npc should be set once game starts
-        if(Manager.networkPlayerControllers.ContainsKey(connectionId))
-        {
-            playerLabel.text = Manager.networkPlayerControllers[connectionId].playerName;
-        }
     }
 
 
@@ -180,15 +195,22 @@ public class PlayerPanel : NetworkBehaviour
     {
         base.OnStartAuthority();
 
-        playerLabel.text = (connectionId == 0) ? "Leader(Me)" : string.Format("Player{0}(Me)", connectionId);
-
         anchorPreset = AnchorPresets.BOTTOM_LEFT;
         AnchorPresetsUtils.AssignAnchor(AnchorPresets.BOTTOM_LEFT, ref rectTransform);
         rectTransform.anchoredPosition = new Vector2(0f, 30f);
 
-        if(Manager.networkPlayerControllers.ContainsKey(connectionId))
+        if(networkPlayerController != null)
         {
-            EventEndTurn += Manager.networkPlayerControllers[connectionId].NetworkPlayerController_EventEndTurn;
+            Debug.Log("Registering event delegate");
+            EventEndTurn += networkPlayerController.MoveCardsDown;
+            if(!IsMyTurn)
+            {
+                networkPlayerController.DisableCards();
+            }
+            else
+            {
+                Debug.Log("It is my turn as connectionId: " + connectionId);
+            }
         }
     }
 
@@ -205,9 +227,9 @@ public class PlayerPanel : NetworkBehaviour
 
         if (hasAuthority)
         {
-            if (Manager.networkPlayerControllers.ContainsKey(connectionId))
+            if (networkPlayerController != null)
             {
-                EventEndTurn -= Manager.networkPlayerControllers[connectionId].NetworkPlayerController_EventEndTurn;
+                EventEndTurn -= networkPlayerController.MoveCardsDown;
             }
         }
     }
@@ -276,9 +298,9 @@ public class PlayerPanel : NetworkBehaviour
 
     }
 
-    [ClientRpc(excludeOwner = true)]
-    public void RpcChangePlayerName(string name)
+    [Server]
+    public void SetNetworkPlayerControllerNetId(uint netId)
     {
-        playerLabel.text = name;
+        networkPlayerControllerNetId = netId;
     }
 }
