@@ -203,14 +203,6 @@ public class PlayerPanel : NetworkBehaviour
         {
             Debug.Log("Registering event delegate");
             EventEndTurn += networkPlayerController.MoveCardsDown;
-            if(!IsMyTurn)
-            {
-                networkPlayerController.DisableCards();
-            }
-            else
-            {
-                Debug.Log("It is my turn as connectionId: " + connectionId);
-            }
         }
     }
 

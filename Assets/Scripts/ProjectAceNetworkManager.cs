@@ -481,8 +481,8 @@ public class ProjectAceNetworkManager : NetworkManager
                 playerPanels[endingTurnClientConnectionId].StopCountdown(endingTurnClientConnectionId);
                 
                 var npc = networkPlayerControllers[endingTurnClientConnectionId];
-                npc.TargetDisableControls(NetworkServer.connections[endingTurnClientConnectionId]);
                 npc.TargetMoveRaisedCardsDown(NetworkServer.connections[endingTurnClientConnectionId]);
+                npc.TargetDisableControls(NetworkServer.connections[endingTurnClientConnectionId]);
             }
         }
 
@@ -523,7 +523,7 @@ public class ProjectAceNetworkManager : NetworkManager
             }
         }
 
-        // debugging
+        // debugging ~ it looks like turn order isn't being initiated properly
         for(int i = 0;i < turnOrder.Count;++i)
         {
             Debug.LogFormat("Turn {0} goes to player with connectionId {1}", i, turnOrder[i]);
@@ -542,11 +542,15 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public void CheckForTurn(int connectionId)
     {
-        if(turnOrder[currentTurnIndex] == connectionId)
+        NetworkConnection playerConnection = NetworkServer.connections[connectionId];
+        if (turnOrder[currentTurnIndex] == connectionId)
         {
-            NetworkConnection startingPlayerConnection = NetworkServer.connections[connectionId];
-            networkPlayerControllers[connectionId].TargetEnableControls(startingPlayerConnection);
+            networkPlayerControllers[connectionId].TargetEnableControls(playerConnection);
             playerPanels[connectionId].StartCountdown(connectionId);
+        }
+        else
+        {
+            networkPlayerControllers[connectionId].TargetDisableControls(playerConnection);
         }
     }
 

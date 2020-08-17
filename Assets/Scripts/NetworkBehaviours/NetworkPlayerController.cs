@@ -149,6 +149,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
     public void DisableCards()
     {
+        Debug.Log("DisableCards card count: " + hand.Count);
         foreach(var card in hand)
         {
             card.DisableInteraction();
@@ -158,15 +159,7 @@ public class NetworkPlayerController : NetworkBehaviour
     [TargetRpc]
     public void TargetMoveRaisedCardsDown(NetworkConnection clientConnection)
     {
-        List<CardController> raisedCards = new List<CardController>();
-        foreach (var cardSelector in hand)
-        {
-            if (cardSelector.IsRaised)
-            {
-                raisedCards.Add(cardSelector);
-            }
-        }
-
+        List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
         StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards));
     }
 
@@ -290,7 +283,6 @@ public class NetworkPlayerController : NetworkBehaviour
                 var myColor = myNewCard.GetComponent<Image>().color;
                 myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 1f);
                 cardController.Initialize(this, newCard);
-                hand.Add(cardController);
                 Destroy(placeholder);
             });
 
@@ -298,8 +290,6 @@ public class NetworkPlayerController : NetworkBehaviour
         }
 
         isCoroutineRunning = false;
-        Debug.Log("Not running");
-
         CmdCheckForTurn();
     }
 
@@ -310,6 +300,11 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             Debug.Log("Addding card: " + newCard);
             GameObject myNewCard = Instantiate(cardPrefab);
+            var newCardController = myNewCard.GetComponent<CardController>();
+            if(newCardController != null)
+            {
+                hand.Add(newCardController);
+            }
 
             // Draw Card Animation
             GameObject placeholder = new GameObject("placeholder");
@@ -510,22 +505,6 @@ public class NetworkPlayerController : NetworkBehaviour
         myCards.Remove(card);
     }
 
-    public bool IsCardPartOfHand(Card selectedCard, out int handIndex)
-    {
-        for(int i = 0;i < myCards.Count; ++i)
-        {
-            Card card = myCards[i];
-            if(selectedCard.Equals(card))
-            {
-                handIndex = i;
-                return true;
-            }
-        }
-
-        handIndex = -1;
-        return false;
-    }
-
     [TargetRpc]
     public void TargetEnableControls(NetworkConnection clientConnection)
     {
@@ -544,6 +523,7 @@ public class NetworkPlayerController : NetworkBehaviour
         canEnableComboButton = false;
         comboButton.SetActive(false);
         endTurnButton.SetActive(false);
+        DisableCards();
     }
 
     [TargetRpc]
@@ -674,7 +654,7 @@ public class NetworkPlayerController : NetworkBehaviour
     }
 
     [Command]
-    public void CmdCheckForTurn()
+    private void CmdCheckForTurn()
     {
         // will start timer if it is currently the player's turn
         Manager.CheckForTurn(connectionId);
