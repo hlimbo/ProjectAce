@@ -94,13 +94,6 @@ public class ProjectAceNetworkManager : NetworkManager
         Debug.LogFormat("[Server]: OnlineScene: {0}", onlineScene);
         Debug.LogFormat("[Server]: OnServerSceneChanged current game state: {0}", currentState);
 
-        // DEBUGGING
-        Debug.LogFormat("[Server]: playerNames count: {0}", playerNames.Count);
-        foreach(var name in playerNames.Values)
-        {
-            Debug.LogFormat("[Server]: playerName {0}", name);
-        }
-
         if (onlineScene.Equals(sceneName))
         {
             Debug.LogFormat("[Server]: Current State: {0}", currentState);
@@ -231,6 +224,7 @@ public class ProjectAceNetworkManager : NetworkManager
         networkPlayerControllers[conn.connectionId] = player.GetComponent<NetworkPlayerController>();
     }
 
+
     // called n times where n = number of clients connected which means calling NetworkServer.Spawn will spawn the same number of objects on 1 client and the next
     public override void OnServerReady(NetworkConnection conn)
     {
@@ -243,7 +237,6 @@ public class ProjectAceNetworkManager : NetworkManager
                 NetworkServer.Spawn(panel, conn);
                 readyPanels[conn.connectionId] = panel.GetComponent<ReadyPanel>();
                 DetermineIfAllClientsAreReady();
-                turnOrder.Add(conn.connectionId);
             }
         }
     }
@@ -274,64 +267,67 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         Debug.Log("[Server]: OnServerDisconnect removing connectionId: " + conn.connectionId);
 
-        playerNames.Remove(conn.connectionId);
-
-        int oldConnectionId = turnOrder[currentTurnIndex];
-        turnOrder.Remove(conn.connectionId);
-        if (oldConnectionId == conn.connectionId && turnOrder.Count > 0)
+        if(turnOrder.Count > 0)
         {
-            Debug.Log("[Server]: Player whose turn was still ongoing just disconnected from the server. Server will pick the next available player to start their turn.");
-
-            if (currentTurnIndex >= turnOrder.Count)
-            {
-                currentTurnIndex = 0;
-            }
-            else
-            {
-                // need to move the index to the left by 1 so we don't skip any connectionIds
-                currentTurnIndex = currentTurnIndex <= 0 ? 0 : currentTurnIndex - 1;
-            }
-        }
-
-        if (currentState == GameState.GAME_IN_PROGRESS)
-        {
+            int oldConnectionId = turnOrder[currentTurnIndex];
+            turnOrder.Remove(conn.connectionId);
             if (oldConnectionId == conn.connectionId && turnOrder.Count > 0)
             {
                 Debug.Log("[Server]: Player whose turn was still ongoing just disconnected from the server. Server will pick the next available player to start their turn.");
-                if (currentTurnIndex >= 0)
+
+                if (currentTurnIndex >= turnOrder.Count)
                 {
-                    int nextClientTurnConnectionId = turnOrder[currentTurnIndex];
-                    if (NetworkServer.connections.ContainsKey(nextClientTurnConnectionId))
+                    currentTurnIndex = 0;
+                }
+                else
+                {
+                    // need to move the index to the left by 1 so we don't skip any connectionIds
+                    currentTurnIndex = currentTurnIndex <= 0 ? 0 : currentTurnIndex - 1;
+                }
+            }
+
+            if (currentState == GameState.GAME_IN_PROGRESS)
+            {
+                if (oldConnectionId == conn.connectionId && turnOrder.Count > 0)
+                {
+                    Debug.Log("[Server]: Player whose turn was still ongoing just disconnected from the server. Server will pick the next available player to start their turn.");
+                    // Move to the next turn in the event the player that disconnected is in the middle of their turn
+                    if (currentTurnIndex >= 0)
                     {
-                        NetworkConnection nextClientConnection = NetworkServer.connections[nextClientTurnConnectionId];
-                        networkPlayerControllers[nextClientTurnConnectionId].TargetEnableControls(nextClientConnection);
-                        playerPanels[nextClientTurnConnectionId].StartCountdown(nextClientTurnConnectionId);
+                        int nextClientTurnConnectionId = turnOrder[currentTurnIndex];
+                        if (NetworkServer.connections.ContainsKey(nextClientTurnConnectionId))
+                        {
+                            NetworkConnection nextClientConnection = NetworkServer.connections[nextClientTurnConnectionId];
+                            networkPlayerControllers[nextClientTurnConnectionId].TargetEnableControls(nextClientConnection);
+                            playerPanels[nextClientTurnConnectionId].StartCountdown(nextClientTurnConnectionId);
+                        }
                     }
                 }
-            }
 
-            if (networkPlayerControllers.ContainsKey(conn.connectionId))
-            {
-                // Give cards back to dealer
-                var cards = networkPlayerControllers[conn.connectionId].myCards.ToArray();
-                Debug.LogFormat("[Server]: Giving Cards back to Dealer! Card Count{0}", cards.Length);
-                foreach (var card in cards)
+                if (networkPlayerControllers.ContainsKey(conn.connectionId))
                 {
-                    Debug.LogFormat("[Server]: Giving back {0}", card);
-                }
+                    // Give cards back to dealer
+                    var cards = networkPlayerControllers[conn.connectionId].myCards.ToArray();
+                    Debug.LogFormat("[Server]: Giving Cards back to Dealer! Card Count{0}", cards.Length);
+                    foreach (var card in cards)
+                    {
+                        Debug.LogFormat("[Server]: Giving back {0}", card);
+                    }
 
-                dealer.AddCardsBackToDrawPile(cards);
-                OnServerUpdateDrawPileCount();
-                networkPlayerControllers.Remove(conn.connectionId);
+                    dealer.AddCardsBackToDrawPile(cards);
+                    OnServerUpdateDrawPileCount();
+                }
             }
         }
-        else
+
+        if (playerNames.ContainsKey(conn.connectionId))
         {
-            // for all other game-states
-            if (networkPlayerControllers.ContainsKey(conn.connectionId))
-            {
-                networkPlayerControllers.Remove(conn.connectionId);
-            }
+            playerNames.Remove(conn.connectionId);
+        }
+
+        if (networkPlayerControllers.ContainsKey(conn.connectionId))
+        {
+            networkPlayerControllers.Remove(conn.connectionId);
         }
 
         // determine new game leader
@@ -340,28 +336,24 @@ public class ProjectAceNetworkManager : NetworkManager
             gameLeaderIndex = networkPlayerControllers.Keys.ToArray().Min();
         }
 
-        if (currentState == GameState.GAME_END)
+        if (currentState == GameState.GAME_END && networkPlayerControllers.ContainsKey(gameLeaderIndex))
         {
             // if game leader index changes let the new leader be able to reset the game
             networkPlayerControllers[gameLeaderIndex].TargetHostEnablePlayAgainButton(NetworkServer.connections[gameLeaderIndex]);
         }
 
-        if (networkPlayerControllers.Count > 0)
+        if (readyPanels.ContainsKey(conn.connectionId))
         {
-            if (readyPanels.ContainsKey(conn.connectionId))
+            readyPanels.Remove(conn.connectionId);
+            if (currentState == GameState.LOBBY)
             {
-                readyPanels.Remove(conn.connectionId);
-                if (currentState == GameState.LOBBY)
-                {
-                    DetermineIfAllClientsAreReady();
-                }
+                DetermineIfAllClientsAreReady();
             }
+        }
 
-
-            if (playerPanels.ContainsKey(conn.connectionId))
-            {
-                playerPanels.Remove(conn.connectionId);
-            }
+        if (playerPanels.ContainsKey(conn.connectionId))
+        {
+            playerPanels.Remove(conn.connectionId);
         }
 
         // Reset game
@@ -495,10 +487,18 @@ public class ProjectAceNetworkManager : NetworkManager
         }
     }
 
+    private void AddActiveConnectionsToTurnOrderList()
+    {
+        foreach(var connId in NetworkServer.connections.Keys)
+        {
+            turnOrder.Add(connId);
+        }
+    }
+
     private void RandomizePlayerTurnOrders()
     {
         // Randomize Turn order if client connection count > 1
-        if (NetworkServer.connections.Count == 2)
+        if (turnOrder.Count == 2)
         {
             float randomChance = UnityEngine.Random.Range(0f, 1f);
             // Swap turn orders
@@ -509,7 +509,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 turnOrder[1] = temp;
             }
         }
-        else if (NetworkServer.connections.Count > 2)
+        else if (turnOrder.Count > 2)
         {
             // fisher-yates randomization
             int k = NetworkServer.connections.Count;
@@ -523,8 +523,9 @@ public class ProjectAceNetworkManager : NetworkManager
             }
         }
 
-        // debugging ~ it looks like turn order isn't being initiated properly
-        for(int i = 0;i < turnOrder.Count;++i)
+        // debugging
+        Debug.Log("TURN ORDER COUNT: " + turnOrder.Count);
+        for (int i = 0; i < turnOrder.Count; ++i)
         {
             Debug.LogFormat("Turn {0} goes to player with connectionId {1}", i, turnOrder[i]);
         }
@@ -534,6 +535,7 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         currentState = GameState.GAME_IN_PROGRESS;
 
+        AddActiveConnectionsToTurnOrderList();
         RandomizePlayerTurnOrders();
         SpawnInGamePlayerPanels();
         ConnectedPlayersReceiveCards();
@@ -665,8 +667,7 @@ public class ProjectAceNetworkManager : NetworkManager
     public override void OnServerConnect(NetworkConnection conn)
     {
         base.OnServerConnect(conn);
-        Debug.Log("[Server]: OnServerConnect");
-        Debug.LogFormat("[Server]: Client connected! {0}", conn.connectionId);
+        Debug.LogFormat("[Server]: OnServerConnect Client connected! {0}", conn.connectionId);
 
         // prevent more players from connecting to the server
         if(currentState == GameState.GAME_IN_PROGRESS || currentState == GameState.GAME_END)
