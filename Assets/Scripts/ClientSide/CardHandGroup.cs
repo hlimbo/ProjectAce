@@ -93,7 +93,6 @@ public class CardHandGroup : UIBehaviour, ILayoutGroup
     // ILayoutGroup Method
     public void SetLayoutHorizontal()
     {
-        Debug.Log("foobar");
         if(orientation != CardHandGroupOrientation.HORIZONTAL)
         {
             return;

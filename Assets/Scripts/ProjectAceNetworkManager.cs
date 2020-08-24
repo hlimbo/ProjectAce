@@ -48,9 +48,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
     private int drawPileCount;
 
-    // Variables used to setup playing field
-    public readonly Dictionary<int, GameObject> opponentCardMats = new Dictionary<int, GameObject>();
-
     // Only exists Server-Side
     private Dealer dealer;
     // array with index representing turnOrder and value representing connectionId
@@ -112,8 +109,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
     }
 
-    // TODO: how to properly clean up these references?
-    // come back here after work to see If I can get play again to function properly!
     private void ResetGame()
     {
         playerPanels.Clear();
@@ -123,7 +118,6 @@ public class ProjectAceNetworkManager : NetworkManager
         currentTurnIndex = 0;
         animIndex = 0;
         dealer = null;
-        //playerNames.Clear();
         gameLeaderIndex = 0;
     }
 
@@ -371,19 +365,12 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.OnStartClient();
         NetworkClient.RegisterHandler<DrawPileMessage>(OnClientDrawPileMessageReceived, false);
-        NetworkClient.RegisterHandler<AllInGamePanelsReceivedMessage>(OnClientReceiveAllPlayerPanels, false);
     }
 
     private void OnClientDrawPileMessageReceived(NetworkConnection conn, DrawPileMessage message)
     {
         drawPileCount = message.cardsLeft;
         drawPileCountText.text = message.cardsLeft.ToString();
-    }
-
-    public static Action OnReceiveAllPlayerPanels;
-    private static void OnClientReceiveAllPlayerPanels(NetworkConnection conn, AllInGamePanelsReceivedMessage msg)
-    {
-        OnReceiveAllPlayerPanels?.Invoke();
     }
 
     private void SpawnInGamePlayerPanels()
@@ -395,9 +382,6 @@ public class ProjectAceNetworkManager : NetworkManager
             playerPanels[connection.Key].SetNetworkPlayerControllerNetId(networkPlayerControllers[connection.Key].netId);
             NetworkServer.Spawn(panel, connection.Value);
         }
-
-        // Consider removing this later
-        NetworkServer.SendToAll(new AllInGamePanelsReceivedMessage());
     }
 
     private void ConnectedPlayersReceiveCards()
@@ -611,7 +595,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 int[] animIndices = new int[cards.Length];
                 for (int i = 0; i < animIndices.Length; ++i)
                 {
-                   animIndices[i] = animIndex;
+                    animIndices[i] = animIndex;
                     animIndex = (animIndex + 1) % ANIM_VARIATION_COUNT;
                 }
                 
@@ -661,7 +645,6 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.OnStopClient();
         NetworkClient.UnregisterHandler<DrawPileMessage>();
-        NetworkClient.UnregisterHandler<AllInGamePanelsReceivedMessage>();
     }
 
     public override void OnServerConnect(NetworkConnection conn)

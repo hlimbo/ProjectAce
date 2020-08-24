@@ -6,6 +6,8 @@ TagManager:
   tags:
   - OpponentCardMat
   - HowToPlayPage
+  - VerticalFacedown
+  - HorizontalFacedown
   layers:
   - Default
   - TransparentFX

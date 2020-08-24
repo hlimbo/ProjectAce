@@ -45,13 +45,6 @@ public class PlayerPanel : NetworkBehaviour
     [SyncVar]
     private int initialTimeLeft;
 
-
-    [SerializeField]
-    private GameObject verticalFaceDownCardPrefab;
-    [SerializeField]
-    private GameObject horizontalFaceDownCardPrefab;
-    private InGamePanelsPlacer inGamePanelsPlacer;
-
     private void OnClientTimeLeftChanged(int oldTimeLeft, int newTimeLeft)
     {
         timeLeftText.text = newTimeLeft.ToString();
@@ -90,7 +83,6 @@ public class PlayerPanel : NetworkBehaviour
         playerLabel.text = newName;
     }
 
-    // Client-Side
     [SyncVar(hook = nameof(OnClientReceiveNetworkPlayerControllerNetId))]
     public uint networkPlayerControllerNetId;
     private NetworkPlayerController networkPlayerController;
@@ -110,9 +102,6 @@ public class PlayerPanel : NetworkBehaviour
         rectTransform = GetComponent<RectTransform>();
 
         uiCanvas = GameObject.Find("Canvas")?.transform;
-
-        inGamePanelsPlacer = FindObjectOfType<InGamePanelsPlacer>();
-
         timeLeftLabel = transform.Find("TimeLeftLabel")?.gameObject;
         timerPanel = transform.Find("TimerPanel")?.gameObject;
         timeLeftLabel.SetActive(false);

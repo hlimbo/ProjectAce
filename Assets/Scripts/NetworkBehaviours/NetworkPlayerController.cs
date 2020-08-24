@@ -44,6 +44,7 @@ public class NetworkPlayerController : NetworkBehaviour
             return manager;
         }
     }
+    private OpponentCardMatManager opponentCardMatManager;
 
     [SyncVar]
     private int connectionId;
@@ -54,9 +55,10 @@ public class NetworkPlayerController : NetworkBehaviour
     [SerializeField]
     private GameObject verticalFaceDownCardPrefab;
     [SerializeField]
-    private GameObject horizontalFaceDownCardPrefab; 
+    private GameObject horizontalFaceDownCardPrefab;
 
-    private List<GameObject> cardMats;
+    // Can belong to either the opponent or current player
+    private GameObject cardMat;
 
     // if game is being self-hosted, then this button only belongs to the hosting game client. During headless mode, all clients will have the ability to reset the game on end
     // as long as they are the game leader
@@ -67,13 +69,15 @@ public class NetworkPlayerController : NetworkBehaviour
 
     private void Awake()
     {
+        opponentCardMatManager = FindObjectOfType<OpponentCardMatManager>();
         cardHandGroup = GameObject.Find("CardHandGroup");
         drawPileGraphic = GameObject.Find("DrawPileGraphic")?.transform;
+        // can be replaced with cardMat and grab cardhandgroup via cardMat instead
         parent = cardHandGroup?.transform;
 
         // Since this is a NetworkBehaviour it will load these resources per instance which is bad
         // I only want to load this resource once!!!!
-        // TODO: move this to a monobehaviour script that makes this call on SampleScene only
+        // move this to a monobehaviour script that makes this call on SampleScene only
         cardPrefab = Resources.Load<GameObject>("Prefabs/CardV3");
         opponentCardPrefab = Resources.Load<GameObject>("Prefabs/OpponentFaceUpCard");
         hand = new List<CardController>();
@@ -103,15 +107,10 @@ public class NetworkPlayerController : NetworkBehaviour
 
         if(!hasAuthority)
         {
-            cardMats = GameObject.FindGameObjectsWithTag("OpponentCardMat").ToList();
-            foreach (GameObject mat in cardMats)
+            cardMat = opponentCardMatManager.RegisterMat();
+            if(cardMat == null)
             {
-                if (!Manager.opponentCardMats.Values.Contains(mat))
-                {
-                    Debug.LogFormat("NetworkPlayerController {0} getting cardmat: {1}", connectionId, mat.name);
-                    Manager.opponentCardMats[connectionId] = mat;
-                    break;
-                }
+                Debug.LogError("NetworkPlayerController could not register an opponent card mat. All opponent card mats are taken");
             }
 
             myCards.Callback += OnClientOpponentCardsUpdated;
@@ -122,6 +121,7 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         base.OnStartAuthority();
 
+        cardMat = GameObject.Find("PlayerCardMat");
         comboButton = GameObject.Find("ComboButton");
         endTurnButton = GameObject.Find("EndTurnButton");
 
@@ -202,47 +202,12 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         if (op == SyncListCards.Operation.OP_ADD)
         {
-            Debug.Log("OnClientOpponentCardsUpdated adding Card: " + newCard);
-            if (Manager.opponentCardMats.ContainsKey(connectionId))
-            {
-                var cardMat = Manager.opponentCardMats[connectionId];
-
-                // Hack
-                var prefabToSpawn = cardMat.name.Equals("CardMat (3)") ?
-                    verticalFaceDownCardPrefab : horizontalFaceDownCardPrefab;
-
-                var cardGO = Instantiate(prefabToSpawn);
-                var parent = cardMat.transform.Find("CardContainer/Viewport/OpponentCards");
-                cardGO.transform.SetParent(parent);
-                var rectTransform = cardGO.GetComponent<RectTransform>();
-
-
-                // Hack
-                if (cardMat.name.Equals("CardMat (1)"))
-                {
-                    AnchorPresetsUtils.AssignAnchor(AnchorPresets.MIDDLE_RIGHT, ref rectTransform);
-                    rectTransform.anchoredPosition = new Vector2(0f, rectTransform.anchoredPosition.y);
-                }
-                else
-                {
-                    rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x, 0f);
-                }
-            }
+            //Debug.Log("OnClientOpponentCardsUpdated adding Card: " + newCard);
+            cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();
         }
         else if (op == SyncListCards.Operation.OP_REMOVEAT)
         {
-            // Combos don't remove opponent's cards from hand
-            Debug.Log("OnClientOpponentCardsUpdated removing Card: " + oldCard + " at index: " + index);
-
-            if (Manager.opponentCardMats.ContainsKey(connectionId))
-            {
-                var cardMat = Manager.opponentCardMats[connectionId];
-                var opponentCardsContainer = cardMat.transform.Find("CardContainer/Viewport/OpponentCards");
-                if (index >= 0 && index < opponentCardsContainer.childCount)
-                {
-                    Destroy(opponentCardsContainer.GetChild(index).gameObject);
-                }
-            }
+            cardMat.GetComponent<OpponentCardMat>()?.DestroyCard(index);
         }
     }
 
@@ -358,6 +323,17 @@ public class NetworkPlayerController : NetworkBehaviour
     public override void OnStopClient()
     {
         base.OnStopClient();
+
+        if(!hasAuthority && cardMat != null)
+        {
+            opponentCardMatManager.UnregisterMat(cardMat);
+            myCards.Callback -= OnClientOpponentCardsUpdated;
+        }
+
+        if(hasAuthority)
+        {
+            myCards.Callback -= OnClientMyCardsUpdated;
+        }
 
         if (isClientOnly)
         {
