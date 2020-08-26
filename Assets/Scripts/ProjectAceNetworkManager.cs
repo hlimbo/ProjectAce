@@ -107,10 +107,6 @@ public class ProjectAceNetworkManager : NetworkManager
             {
                 ResetGame();
                 currentState = GameState.LOBBY;
-                if (NetworkServer.connections.Count > 0)
-                {
-                    gameLeaderIndex = NetworkServer.connections.Keys.Min();
-                }
             }
 
             InitializeDealer();
@@ -208,10 +204,17 @@ public class ProjectAceNetworkManager : NetworkManager
         var player = Instantiate(playerPrefab);
         NetworkServer.AddPlayerForConnection(conn, player);
 
-        // locate ui element references on the server
-        if(networkPlayerControllers.Count == 0)
+        // Leader will also be the connection with the lowest connectionId
+        if(networkPlayerControllers.Count > 0)
         {
-            if(NetworkServer.localClientActive)
+            gameLeaderIndex = gameLeaderIndex > conn.connectionId ? conn.connectionId : gameLeaderIndex;
+        }
+
+        // locate ui element references on the server
+        if (networkPlayerControllers.Count == 0)
+        {
+            gameLeaderIndex = conn.connectionId;
+            if (NetworkServer.localClientActive)
             {
                 // For Hosts (game clients that also act as the server, the host will need to get a reference to the DrawPileCountLabel)
                 if (drawPileCountText == null)
@@ -241,17 +244,16 @@ public class ProjectAceNetworkManager : NetworkManager
         base.OnServerReady(conn);
         if(SceneManager.GetActiveScene().path.Equals(onlineScene))
         {
+            Debug.Log("[SERVER]: currentState: " + currentState);
+
             if(currentState == GameState.LOBBY)
             {
-                var panel = Instantiate(readyPrefab);
-                NetworkServer.Spawn(panel, conn);
-                readyPanels[conn.connectionId] = panel.GetComponent<ReadyPanel>();
-                DetermineIfAllClientsAreReady();
+                var readyPanel = Instantiate(readyPrefab);
+                readyPanels[conn.connectionId] = readyPanel.GetComponent<ReadyPanel>();
 
-                // Spawn player-panel in Lobby
+                // Spawn player-panel in Lobby ~ sometimes this doesn't spawn why?
                 var playerPanel = Instantiate(playerPanelPrefab);
-                NetworkServer.Spawn(playerPanel, conn);
-
+                Debug.Log("[SERVER]: spawning playerPanel: " + playerPanel);
                 playerPanels[conn.connectionId] = playerPanel.GetComponent<PlayerPanel>();
                 foreach (var playerNumber in playerNumbers.Keys)
                 {
@@ -264,6 +266,11 @@ public class ProjectAceNetworkManager : NetworkManager
                         break;
                     }
                 }
+
+                NetworkServer.Spawn(readyPanel, conn);
+                NetworkServer.Spawn(playerPanel, conn);
+
+                DetermineIfAllClientsAreReady();
             }
         }
     }
@@ -411,30 +418,6 @@ public class ProjectAceNetworkManager : NetworkManager
         drawPileCountText.text = message.cardsLeft.ToString();
     }
 
-    private void SpawnInGamePlayerPanels()
-    {
-        foreach(var connection in NetworkServer.connections)
-        {
-            var panel = Instantiate(playerPanelPrefab);
-            playerPanels[connection.Key] = panel.GetComponent<PlayerPanel>();
-
-            foreach (var playerNumber in playerNumbers.Keys)
-            {
-                bool isTaken = playerNumbers[playerNumber];
-                if (!isTaken)
-                {
-                    playerPanels[connection.Key].playerNumber = playerNumber;
-                }
-            }
-
-
-            playerPanels[connection.Key].SetNetworkPlayerControllerNetId(networkPlayerControllers[connection.Key].netId);
-            //playerPanels[connection.Key].RpcOnClientPlayerPanelSpawned(networkPlayerControllers.Count());
-                 
-            NetworkServer.Spawn(panel, connection.Value);
-        }
-    }
-
     private void ConnectedPlayersReceiveCards()
     {
         foreach (var kvp in networkPlayerControllers)
@@ -485,7 +468,7 @@ public class ProjectAceNetworkManager : NetworkManager
         }
 
         // Enable start game button on host machine if all players connected are ready
-        if(NetworkServer.connections.ContainsKey(gameLeaderIndex))
+        if(readyPanels.ContainsKey(gameLeaderIndex) && NetworkServer.connections.ContainsKey(gameLeaderIndex))
         {
             readyPanels[gameLeaderIndex].TargetToggleStartGameButton(NetworkServer.connections[gameLeaderIndex], canEnableStartGameButton);
         }
@@ -572,7 +555,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
         AddActiveConnectionsToTurnOrderList();
         RandomizePlayerTurnOrders();
-        // for each active opponent, decide which card mat gets assigned to the opponent
         AssignOpponentCardMats();
         ConnectedPlayersReceiveCards();
         OnServerUpdateDrawPileCount();
@@ -580,11 +562,10 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public void AssignOpponentCardMats()
     {
-        //int activePlayerCount = networkPlayerControllers.Count;
-        foreach (var kvp in networkPlayerControllers)
+        Debug.Log("NETWORK PLAYER CONTROLLERS COUNT: " + networkPlayerControllers.Count);
+
+        foreach (var npc in networkPlayerControllers.Values)
         {
-            var clientConnection = NetworkServer.connections[kvp.Key];
-            var npc = kvp.Value;
             npc.RpcOnClientStartGame();
         }
     }
@@ -727,7 +708,6 @@ public class ProjectAceNetworkManager : NetworkManager
         
         if(networkPlayerControllers.Count == 0)
         {
-            gameLeaderIndex = conn.connectionId;
             if (isHeadless && SceneManager.GetActiveScene().path.Equals(offlineScene))
             {
                 Debug.LogFormat("[Server]: Changing Scenes to: {0}", onlineScene);

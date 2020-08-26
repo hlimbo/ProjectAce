@@ -1,6 +1,4 @@
-﻿using Mirror;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using ProjectAce;
@@ -36,38 +34,6 @@ public class OpponentCardMatManager : MonoBehaviour
 
         return null;
     }
-
-
-    // goal is to keep a logically consistent view of the table across different game clients
-    // register mats AFTER game has started need to write a clientRpc named OnClientStartGame()
-    //public GameObject RegisterMat()
-    //{
-    //    foreach (var mat in cardMats)
-    //    {
-    //        if (!cardMatTable.ContainsKey(mat) || cardMatTable[mat] == false)
-    //        {
-    //            mat.SetActive(true);
-    //            cardMatTable[mat] = true;
-
-    //            var opponentCardMat = mat.GetComponent<OpponentCardMat>();
-    //            if (mat.name.Equals("OpponentCardMat1"))
-    //            {
-    //                opponentCardMat.SetFaceDownCardPrefab(verticalFaceDownCardPrefab);
-    //            }
-    //            else
-    //            {
-    //                opponentCardMat.SetFaceDownCardPrefab(horizontalFaceDownCardPrefab);
-    //            }
-
-    //            return mat;
-    //        }
-    //    }
-
-    //    // Return null if unable to register a card mat for the opponent
-    //    return null;
-    //}
-
-
 
     public bool UnregisterMat(int connectionId)
     {
@@ -154,6 +120,10 @@ public class OpponentCardMatManager : MonoBehaviour
                 AnchorPresetsUtils.AssignAnchor(unownedPanel.anchorPreset, ref rectTransform);
                 rectTransform.anchoredPosition = new Vector2(-50f, 0f);
             }
+        }
+        else
+        {
+            Debug.LogError("unownedpanel cannot be assigned as it is null");
         }
     }
 

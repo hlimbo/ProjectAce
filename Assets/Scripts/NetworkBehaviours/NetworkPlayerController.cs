@@ -108,12 +108,6 @@ public class NetworkPlayerController : NetworkBehaviour
 
         if(!hasAuthority)
         {
-            //cardMat = opponentCardMatManager.RegisterMat();
-            //if(cardMat == null)
-            //{
-            //    Debug.LogError("NetworkPlayerController could not register an opponent card mat. All opponent card mats are taken");
-            //}
-
             myCards.Callback += OnClientOpponentCardsUpdated;
         }
     }
@@ -201,7 +195,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
     private void OnClientOpponentCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
-        // Hack - if cardMat hasn't been assigned yet as game starts, do nothing here
+        // cardMat gameObject reference won't be available until game completes starting up
         if (cardMat == null)
         {
             return;
@@ -210,7 +204,6 @@ public class NetworkPlayerController : NetworkBehaviour
         if (op == SyncListCards.Operation.OP_ADD)
         {
             //Debug.Log("OnClientOpponentCardsUpdated adding Card: " + newCard);
-            // Problem: this gets called BEFORE game decides how to assign card mats and player panels
             cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();
         }
         else if (op == SyncListCards.Operation.OP_REMOVEAT)
@@ -647,7 +640,7 @@ public class NetworkPlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcOnClientStartGame()
     {
-        if(!hasAuthority)
+        if (!hasAuthority)
         {
             opponentCardMatManager.RegisterMats();
             cardMat = opponentCardMatManager.GetCardMat(connectionId);
@@ -657,7 +650,7 @@ public class NetworkPlayerController : NetworkBehaviour
             }
             else
             {
-                // Hack - spawn cards when game first starts
+                // Spawn cards as soon as server triggers this rpc to assign a valid cardMat gameObject reference
                 for(int i = 0;i < myCards.Count; ++i)
                 {
                     cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();

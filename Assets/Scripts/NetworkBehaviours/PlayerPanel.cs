@@ -283,46 +283,4 @@ public class PlayerPanel : NetworkBehaviour
     {
         networkPlayerControllerNetId = netId;
     }
-
-    [ClientRpc(excludeOwner = true)]
-    public void RpcOnClientPlayerPanelSpawned(int activePlayerCount)
-    {
-        if(!hasAuthority)
-        {
-            if (activePlayerCount == 2)
-            {
-                // opposing player panel will always be hardcoded to the top-right anchor
-                anchorPreset = AnchorPresets.TOP_RIGHT;
-                AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
-                rectTransform.anchoredPosition = new Vector2(-50f, 0f);
-            }
-            else if (activePlayerCount > 2 && networkPlayerController != null)
-            {
-                var opponentCardMat = networkPlayerController.CardMat?.GetComponent<OpponentCardMat>();
-                if (opponentCardMat != null)
-                {
-                    Vector2 offset = new Vector2(0f, 0f);
-                    switch (opponentCardMat.anchorPreset)
-                    {
-                        case AnchorPresets.MIDDLE_LEFT:
-                            anchorPreset = AnchorPresets.TOP_LEFT;
-                            break;
-                        case AnchorPresets.MIDDLE_RIGHT:
-                            anchorPreset = AnchorPresets.BOTTOM_RIGHT;
-                            break;
-                        case AnchorPresets.TOP_CENTER:
-                            anchorPreset = AnchorPresets.TOP_RIGHT;
-                            offset.Set(-50f, 0f);
-                            break;
-                        default:
-                            Debug.LogError("PlayerPanel OnStartClient: could not assign a valid player panel anchor");
-                            break;
-                    }
-
-                    AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
-                    rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x + offset.x, rectTransform.anchoredPosition.y + offset.y);
-                }
-            }
-        }
-    }
 }
