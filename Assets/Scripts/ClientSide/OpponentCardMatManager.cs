@@ -1,12 +1,16 @@
 ﻿using Mirror;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using ProjectAce;
+using System;
 
 public class OpponentCardMatManager : MonoBehaviour
 {
     private GameObject[] cardMats;
-    private Dictionary<GameObject, bool> cardMatTable;
+    // key = connectionId
+    private Dictionary<int, GameObject> cardMatTable = new Dictionary<int, GameObject>();
 
     [SerializeField]
     private GameObject horizontalFaceDownCardPrefab;
@@ -21,46 +25,172 @@ public class OpponentCardMatManager : MonoBehaviour
         {
             mat.SetActive(false);
         }
-
-        cardMatTable = new Dictionary<GameObject, bool>();
     }
 
-    public GameObject RegisterMat()
+    public GameObject GetCardMat(int connectionId)
     {
-        foreach(var mat in cardMats)
+        if(cardMatTable.ContainsKey(connectionId))
         {
-            if(!cardMatTable.ContainsKey(mat) || cardMatTable[mat] == false)
-            {
-                mat.SetActive(true);
-                cardMatTable[mat] = true;
-
-                var opponentCardMat = mat.GetComponent<OpponentCardMat>();
-                if(mat.name.Equals("OpponentCardMat1"))
-                {
-                    opponentCardMat.SetFaceDownCardPrefab(verticalFaceDownCardPrefab);
-                }
-                else
-                {
-                    opponentCardMat.SetFaceDownCardPrefab(horizontalFaceDownCardPrefab);
-                }
-                
-                return mat;
-            }
+            return cardMatTable[connectionId];
         }
 
-        // Return null if unable to register a card mat for the opponent
         return null;
     }
 
-    public bool UnregisterMat(GameObject mat)
+
+    // goal is to keep a logically consistent view of the table across different game clients
+    // register mats AFTER game has started need to write a clientRpc named OnClientStartGame()
+    //public GameObject RegisterMat()
+    //{
+    //    foreach (var mat in cardMats)
+    //    {
+    //        if (!cardMatTable.ContainsKey(mat) || cardMatTable[mat] == false)
+    //        {
+    //            mat.SetActive(true);
+    //            cardMatTable[mat] = true;
+
+    //            var opponentCardMat = mat.GetComponent<OpponentCardMat>();
+    //            if (mat.name.Equals("OpponentCardMat1"))
+    //            {
+    //                opponentCardMat.SetFaceDownCardPrefab(verticalFaceDownCardPrefab);
+    //            }
+    //            else
+    //            {
+    //                opponentCardMat.SetFaceDownCardPrefab(horizontalFaceDownCardPrefab);
+    //            }
+
+    //            return mat;
+    //        }
+    //    }
+
+    //    // Return null if unable to register a card mat for the opponent
+    //    return null;
+    //}
+
+
+
+    public bool UnregisterMat(int connectionId)
     {
-        if(cardMatTable.ContainsKey(mat))
+        if (cardMatTable.ContainsKey(connectionId))
         {
-            mat.SetActive(false);
-            cardMatTable[mat] = false;
-            return true;
+            cardMatTable[connectionId].SetActive(false);
+            return cardMatTable.Remove(connectionId);
         }
 
         return false;
+    }
+
+    public void RegisterMats()
+    {
+        PlayerPanel[] playerPanels = FindObjectsOfType<PlayerPanel>();
+        PlayerPanel ownedPlayerPanel = playerPanels.Where(p => p.hasAuthority).FirstOrDefault();
+
+        if (playerPanels.Length > 2)
+        {
+            if(ownedPlayerPanel != null)
+            {
+                bool isOwnerEven = ownedPlayerPanel.playerNumber % 2 == 0;
+                PlayerPanel oppositeSidePanel = playerPanels
+                    .Where(p => !p.hasAuthority && isOwnerEven == (p.playerNumber % 2 == 0))
+                    .FirstOrDefault();
+
+                if(oppositeSidePanel != null)
+                {
+                    AssignOppositeSideMat(oppositeSidePanel);
+                }
+                
+                if(isOwnerEven && playerPanels.Length == 3 && oppositeSidePanel == null)
+                {
+                    PlayerPanel[] sidePanels = playerPanels
+                        .Where(p => !p.hasAuthority)
+                        .OrderBy(p => p.playerNumber)
+                        .ToArray();
+
+                    AssignSidePanelMats(sidePanels);
+                }
+                else
+                {
+                    PlayerPanel[] sidePanels = playerPanels
+                        .Where(p => !p.hasAuthority && oppositeSidePanel.playerNumber != p.playerNumber)
+                        .ToArray();
+
+                    // swap order player panels get assigned to for a particular anchor
+                    if(ownedPlayerPanel.playerNumber > oppositeSidePanel.playerNumber)
+                    {
+                        sidePanels = sidePanels.OrderByDescending(p => p.playerNumber).ToArray();
+                    }
+                    else
+                    {
+                        sidePanels = sidePanels.OrderBy(p => p.playerNumber).ToArray();
+                    }
+
+                    AssignSidePanelMats(sidePanels);
+
+                }
+            }
+        }
+        else if(playerPanels.Length == 2)
+        {
+            PlayerPanel unownedPanel = playerPanels.Where(p => !p.hasAuthority).FirstOrDefault();
+            AssignOppositeSideMat(unownedPanel);
+        }
+    }
+
+    private void AssignOppositeSideMat(PlayerPanel unownedPanel)
+    {
+        if (unownedPanel != null)
+        {
+            var mat = cardMats.Where(go => go.name.Equals("OpponentCardMat1")).FirstOrDefault();
+            if (mat != null)
+            {
+                mat.SetActive(true);
+                Debug.Log("unowned panel connectionId: " + unownedPanel.ConnectionId);
+                cardMatTable[unownedPanel.ConnectionId] = mat;
+                var opponentCardMat = mat.GetComponent<OpponentCardMat>();
+                opponentCardMat.SetFaceDownCardPrefab(verticalFaceDownCardPrefab);
+
+                unownedPanel.anchorPreset = AnchorPresets.TOP_RIGHT;
+                var rectTransform = unownedPanel.GetComponent<RectTransform>();
+                AnchorPresetsUtils.AssignAnchor(unownedPanel.anchorPreset, ref rectTransform);
+                rectTransform.anchoredPosition = new Vector2(-50f, 0f);
+            }
+        }
+    }
+
+    private void AssignSidePanelMats(PlayerPanel[] sidePanels)
+    {
+        if (sidePanels.Length == 0)
+        {
+            Debug.LogError("OpponentCardMatManager AssignSidePanel Mats error... SidePanels is empty");
+        }
+
+        var sideCardMats = cardMats.Where(c => c.name.Equals("OpponentCardMat2") || c.name.Equals("OpponentCardMat3")).ToArray();
+      
+        for(int i = 0;i < Math.Min(sideCardMats.Length, sidePanels.Length); ++i)
+        {
+            var mat = sideCardMats[i];
+            var sidePanel = sidePanels[i];
+            mat.SetActive(true);
+            cardMatTable[sidePanel.ConnectionId] = mat;
+
+            var opponentCardMat = mat.GetComponent<OpponentCardMat>();
+            opponentCardMat.SetFaceDownCardPrefab(horizontalFaceDownCardPrefab);
+
+            switch (opponentCardMat.anchorPreset)
+            {
+                case AnchorPresets.MIDDLE_LEFT:
+                    sidePanel.anchorPreset = AnchorPresets.TOP_LEFT;
+                    break;
+                case AnchorPresets.MIDDLE_RIGHT:
+                    sidePanel.anchorPreset = AnchorPresets.BOTTOM_RIGHT;
+                    break;
+                default:
+                    Debug.LogError("OpponentCardMatManager RegisterMats: could not assign a valid player panel anchor");
+                    break;
+            }
+
+            var rectTransform = sidePanel.GetComponent<RectTransform>();
+            AnchorPresetsUtils.AssignAnchor(sidePanel.anchorPreset, ref rectTransform);
+        }
     }
 }

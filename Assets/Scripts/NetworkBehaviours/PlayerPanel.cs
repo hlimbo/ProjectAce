@@ -37,8 +37,10 @@ public class PlayerPanel : NetworkBehaviour
     private Text playerLabel;
     private Text cardsLeftText;
 
-    private AnchorPresets anchorPreset;
-    public AnchorPresets AnchorPreset => anchorPreset;
+    public AnchorPresets anchorPreset;
+
+    [SyncVar]
+    public int playerNumber;
 
     [SyncVar(hook = nameof(OnClientTimeLeftChanged))]
     private int timeLeft;
@@ -73,10 +75,8 @@ public class PlayerPanel : NetworkBehaviour
 
     private RectTransform rectTransform;
 
-    private static HashSet<AnchorPresets> takenPresets = new HashSet<AnchorPresets>();
-
     [SyncVar(hook = nameof(OnClientNameChanged))]
-    private string playerName;
+    public string playerName;
 
     private void OnClientNameChanged(string _, string newName)
     {
@@ -127,6 +127,9 @@ public class PlayerPanel : NetworkBehaviour
 
         transform.SetParent(uiCanvas);
         transform.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f);
+        transform.GetComponent<RectTransform>().localScale = new Vector3(0.75f, 0.75f, 0.75f);
+        // Hack - hides the player panel from being visible from the lobby by rendering it behind the lobby game object
+        transform.SetAsFirstSibling();
 
         // TODO: to support headless mode, remove the need to have client-side copy references of player panels
         if (isClientOnly)
@@ -134,49 +137,45 @@ public class PlayerPanel : NetworkBehaviour
             Manager.playerPanels[connectionId] = this;
         }
 
-        if (!hasAuthority)
-        {
-            // Assigning Anchor Presets for opponent's player panel
-            var allPresets = new AnchorPresets[]
-            {
-                // Ordered this way to ensure the opposing player remains consistent in perspective
-                // e.g. player 1 facing player 2 on player 1's game and player 2 facing player 1 on player 2's game
-                AnchorPresets.TOP_RIGHT,
-                AnchorPresets.TOP_LEFT,
-                AnchorPresets.BOTTOM_RIGHT
-            };
 
-            // TODO: Think of a way to determine where the player panels should be placed server-side and by the time these client side panels
-            // spawn, the server will just give each panel instructions as where they will be placed on
-            List<AnchorPresets> takenPresets = FindObjectsOfType<PlayerPanel>()
-                .Where(p => p != this)
-                .Select(p => p.AnchorPreset)
-                .ToList();
+        //if (!hasAuthority)
+        //{
 
-            foreach(var preset in allPresets)
-            {
-                if(!takenPresets.Contains(preset))
-                {
-                    anchorPreset = preset;
-                    var rectTransform = GetComponent<RectTransform>();
-                    if(rectTransform != null)
-                    {
-                        AnchorPresetsUtils.AssignAnchor(preset, ref rectTransform);
-                        // Hard code offset position for now
-                        if(preset == AnchorPresets.TOP_RIGHT)
-                        {
-                            rectTransform.anchoredPosition = new Vector2(-50f, 0f);
-                        }
-                        else
-                        {
-                            rectTransform.anchoredPosition = new Vector2(0f, 0f);
-                        }
-                    }
+        //    if (activePlayerCount == 2)
+        //    {
+        //        // opposing player panel will always be hardcoded to the top-right anchor
+        //        anchorPreset = AnchorPresets.TOP_RIGHT;
+        //        AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
+        //        rectTransform.anchoredPosition = new Vector2(-50f, 0f);
+        //    }
+        //    else if (activePlayerCount > 2 && networkPlayerController != null)
+        //    {
+        //        var opponentCardMat = networkPlayerController.CardMat?.GetComponent<OpponentCardMat>();
+        //        if(opponentCardMat != null)
+        //        {
+        //            Vector2 offset = new Vector2(0f, 0f);
+        //            switch(opponentCardMat.anchorPreset)
+        //            {
+        //                case AnchorPresets.MIDDLE_LEFT:
+        //                    anchorPreset = AnchorPresets.TOP_LEFT;
+        //                    break;
+        //                case AnchorPresets.MIDDLE_RIGHT:
+        //                    anchorPreset = AnchorPresets.BOTTOM_RIGHT;
+        //                    break;
+        //                case AnchorPresets.TOP_CENTER:
+        //                    anchorPreset = AnchorPresets.TOP_RIGHT;
+        //                    offset.Set(-50f, 0f);
+        //                    break;
+        //                default:
+        //                    Debug.LogError("PlayerPanel OnStartClient: could not assign a valid player panel anchor");
+        //                    break;
+        //            }
 
-                    break;
-                }
-            }
-        }
+        //            AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
+        //            rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x + offset.x, rectTransform.anchoredPosition.y + offset.y);
+        //        }
+        //    }
+        //}
     }
 
 
@@ -283,5 +282,47 @@ public class PlayerPanel : NetworkBehaviour
     public void SetNetworkPlayerControllerNetId(uint netId)
     {
         networkPlayerControllerNetId = netId;
+    }
+
+    [ClientRpc(excludeOwner = true)]
+    public void RpcOnClientPlayerPanelSpawned(int activePlayerCount)
+    {
+        if(!hasAuthority)
+        {
+            if (activePlayerCount == 2)
+            {
+                // opposing player panel will always be hardcoded to the top-right anchor
+                anchorPreset = AnchorPresets.TOP_RIGHT;
+                AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
+                rectTransform.anchoredPosition = new Vector2(-50f, 0f);
+            }
+            else if (activePlayerCount > 2 && networkPlayerController != null)
+            {
+                var opponentCardMat = networkPlayerController.CardMat?.GetComponent<OpponentCardMat>();
+                if (opponentCardMat != null)
+                {
+                    Vector2 offset = new Vector2(0f, 0f);
+                    switch (opponentCardMat.anchorPreset)
+                    {
+                        case AnchorPresets.MIDDLE_LEFT:
+                            anchorPreset = AnchorPresets.TOP_LEFT;
+                            break;
+                        case AnchorPresets.MIDDLE_RIGHT:
+                            anchorPreset = AnchorPresets.BOTTOM_RIGHT;
+                            break;
+                        case AnchorPresets.TOP_CENTER:
+                            anchorPreset = AnchorPresets.TOP_RIGHT;
+                            offset.Set(-50f, 0f);
+                            break;
+                        default:
+                            Debug.LogError("PlayerPanel OnStartClient: could not assign a valid player panel anchor");
+                            break;
+                    }
+
+                    AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
+                    rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x + offset.x, rectTransform.anchoredPosition.y + offset.y);
+                }
+            }
+        }
     }
 }

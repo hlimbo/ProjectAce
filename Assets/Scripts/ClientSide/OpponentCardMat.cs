@@ -13,6 +13,9 @@ public class OpponentCardMat : MonoBehaviour
 
     private bool isCardDestructionInProgress = false;
 
+    // used to determine the position of the player panel being spawned on the client
+    public AnchorPresets anchorPreset;
+
     private void Awake()
     {
         hand = transform.Find("CardContainer/Viewport/OpponentCards");

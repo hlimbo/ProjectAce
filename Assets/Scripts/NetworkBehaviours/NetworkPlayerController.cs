@@ -59,6 +59,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
     // Can belong to either the opponent or current player
     private GameObject cardMat;
+    public GameObject CardMat => cardMat;
 
     // if game is being self-hosted, then this button only belongs to the hosting game client. During headless mode, all clients will have the ability to reset the game on end
     // as long as they are the game leader
@@ -107,11 +108,11 @@ public class NetworkPlayerController : NetworkBehaviour
 
         if(!hasAuthority)
         {
-            cardMat = opponentCardMatManager.RegisterMat();
-            if(cardMat == null)
-            {
-                Debug.LogError("NetworkPlayerController could not register an opponent card mat. All opponent card mats are taken");
-            }
+            //cardMat = opponentCardMatManager.RegisterMat();
+            //if(cardMat == null)
+            //{
+            //    Debug.LogError("NetworkPlayerController could not register an opponent card mat. All opponent card mats are taken");
+            //}
 
             myCards.Callback += OnClientOpponentCardsUpdated;
         }
@@ -200,9 +201,16 @@ public class NetworkPlayerController : NetworkBehaviour
 
     private void OnClientOpponentCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
+        // Hack - if cardMat hasn't been assigned yet as game starts, do nothing here
+        if (cardMat == null)
+        {
+            return;
+        }
+
         if (op == SyncListCards.Operation.OP_ADD)
         {
             //Debug.Log("OnClientOpponentCardsUpdated adding Card: " + newCard);
+            // Problem: this gets called BEFORE game decides how to assign card mats and player panels
             cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();
         }
         else if (op == SyncListCards.Operation.OP_REMOVEAT)
@@ -326,7 +334,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
         if(!hasAuthority && cardMat != null)
         {
-            opponentCardMatManager.UnregisterMat(cardMat);
+            opponentCardMatManager.UnregisterMat(connectionId);
             myCards.Callback -= OnClientOpponentCardsUpdated;
         }
 
@@ -634,5 +642,27 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         // will start timer if it is currently the player's turn
         Manager.CheckForTurn(connectionId);
+    }
+
+    [ClientRpc]
+    public void RpcOnClientStartGame()
+    {
+        if(!hasAuthority)
+        {
+            opponentCardMatManager.RegisterMats();
+            cardMat = opponentCardMatManager.GetCardMat(connectionId);
+            if (cardMat == null)
+            {
+                Debug.LogError("NetworkPlayerController could not register an opponent card mat. All opponent card mats are taken");
+            }
+            else
+            {
+                // Hack - spawn cards when game first starts
+                for(int i = 0;i < myCards.Count; ++i)
+                {
+                    cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();
+                }
+            }
+        }
     }
 }

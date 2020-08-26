@@ -46,6 +46,15 @@ public class ProjectAceNetworkManager : NetworkManager
     // Maintained server-side only
     public readonly Dictionary<int, NameTag> playerNames = new Dictionary<int, NameTag>();
 
+    public readonly Dictionary<int, bool> playerNumbers = new Dictionary<int,bool>()
+    {
+        { 1, false },
+        { 2, false },
+        { 3, false },
+        { 4, false }
+    };
+
+
     private int drawPileCount;
 
     // Only exists Server-Side
@@ -119,6 +128,12 @@ public class ProjectAceNetworkManager : NetworkManager
         animIndex = 0;
         dealer = null;
         gameLeaderIndex = 0;
+
+        var playerNums = playerNumbers.Keys.ToArray();
+        foreach(var playerNum in playerNums)
+        {
+            playerNumbers[playerNum] = false;
+        }
     }
 
     private void InitializeDealer()
@@ -216,6 +231,7 @@ public class ProjectAceNetworkManager : NetworkManager
         }
 
         networkPlayerControllers[conn.connectionId] = player.GetComponent<NetworkPlayerController>();
+        playerPanels[conn.connectionId].SetNetworkPlayerControllerNetId(networkPlayerControllers[conn.connectionId].netId);
     }
 
 
@@ -231,6 +247,23 @@ public class ProjectAceNetworkManager : NetworkManager
                 NetworkServer.Spawn(panel, conn);
                 readyPanels[conn.connectionId] = panel.GetComponent<ReadyPanel>();
                 DetermineIfAllClientsAreReady();
+
+                // Spawn player-panel in Lobby
+                var playerPanel = Instantiate(playerPanelPrefab);
+                NetworkServer.Spawn(playerPanel, conn);
+
+                playerPanels[conn.connectionId] = playerPanel.GetComponent<PlayerPanel>();
+                foreach (var playerNumber in playerNumbers.Keys)
+                {
+                    bool isTaken = playerNumbers[playerNumber];
+                    if (!isTaken)
+                    {
+                        playerPanels[conn.connectionId].playerNumber = playerNumber;
+                        playerNumbers[playerNumber] = true;
+                        Debug.LogFormat("[Server]: Player number assigned to connection id {0} is {1}", conn.connectionId, playerNumber);
+                        break;
+                    }
+                }
             }
         }
     }
@@ -347,6 +380,11 @@ public class ProjectAceNetworkManager : NetworkManager
 
         if (playerPanels.ContainsKey(conn.connectionId))
         {
+            int playerNumber = playerPanels[conn.connectionId].playerNumber;
+            if(playerNumber != 0)
+            {
+                playerNumbers[playerNumber] = false;
+            }
             playerPanels.Remove(conn.connectionId);
         }
 
@@ -379,7 +417,20 @@ public class ProjectAceNetworkManager : NetworkManager
         {
             var panel = Instantiate(playerPanelPrefab);
             playerPanels[connection.Key] = panel.GetComponent<PlayerPanel>();
+
+            foreach (var playerNumber in playerNumbers.Keys)
+            {
+                bool isTaken = playerNumbers[playerNumber];
+                if (!isTaken)
+                {
+                    playerPanels[connection.Key].playerNumber = playerNumber;
+                }
+            }
+
+
             playerPanels[connection.Key].SetNetworkPlayerControllerNetId(networkPlayerControllers[connection.Key].netId);
+            //playerPanels[connection.Key].RpcOnClientPlayerPanelSpawned(networkPlayerControllers.Count());
+                 
             NetworkServer.Spawn(panel, connection.Value);
         }
     }
@@ -521,9 +572,21 @@ public class ProjectAceNetworkManager : NetworkManager
 
         AddActiveConnectionsToTurnOrderList();
         RandomizePlayerTurnOrders();
-        SpawnInGamePlayerPanels();
+        // for each active opponent, decide which card mat gets assigned to the opponent
+        AssignOpponentCardMats();
         ConnectedPlayersReceiveCards();
         OnServerUpdateDrawPileCount();
+    }
+
+    public void AssignOpponentCardMats()
+    {
+        //int activePlayerCount = networkPlayerControllers.Count;
+        foreach (var kvp in networkPlayerControllers)
+        {
+            var clientConnection = NetworkServer.connections[kvp.Key];
+            var npc = kvp.Value;
+            npc.RpcOnClientStartGame();
+        }
     }
 
     public void CheckForTurn(int connectionId)

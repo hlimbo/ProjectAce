@@ -450,7 +450,7 @@ PrefabInstance:
     - target: {fileID: 6692242465565178851, guid: 6a0ba27008f11be4e9e992c34921ed42,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6a0ba27008f11be4e9e992c34921ed42, type: 3}
@@ -3704,7 +3704,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1191948492
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3859,7 +3859,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1222650341
 RectTransform:
   m_ObjectHideFlags: 0
@@ -6810,6 +6810,11 @@ PrefabInstance:
       propertyPath: m_Pivot.y
       value: 0.5
       objectReference: {fileID: 0}
+    - target: {fileID: 7071037310573013704, guid: 5720379bd015a004e8dce15bf092f803,
+        type: 3}
+      propertyPath: anchorPreset
+      value: 5
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5720379bd015a004e8dce15bf092f803, type: 3}
 --- !u!224 &1488409775669154196 stripped
@@ -7782,6 +7787,11 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 1895574288}
     m_Modifications:
+    - target: {fileID: 4347180886349011677, guid: c8a0cda52c7193044a54e5ceccead097,
+        type: 3}
+      propertyPath: anchorPreset
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5970584619745880295, guid: c8a0cda52c7193044a54e5ceccead097,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -7912,6 +7922,11 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 1895574288}
     m_Modifications:
+    - target: {fileID: 2758383808232070759, guid: 49e1e6f37ac5f5240a3badebc801bad4,
+        type: 3}
+      propertyPath: anchorPreset
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 5953393152324411737, guid: 49e1e6f37ac5f5240a3badebc801bad4,
         type: 3}
       propertyPath: m_SizeDelta.y

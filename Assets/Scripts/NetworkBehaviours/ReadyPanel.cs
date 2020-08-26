@@ -110,7 +110,7 @@ public class ReadyPanel : NetworkBehaviour
         connectionId = connectionToClient.connectionId;
         if(Manager.playerNames.ContainsKey(connectionId))
         {
-            Debug.Log("REadyPanel on start server with name! " + Manager.playerNames[connectionId].name);
+            Debug.Log("ReadyPanel on start server with name! " + Manager.playerNames[connectionId].name);
             playerName = Manager.playerNames[connectionId];
         }
     }
@@ -136,7 +136,12 @@ public class ReadyPanel : NetworkBehaviour
         transform.SetParent(parentTransform);
         transform.localScale = new Vector3(0.8f, 0.8f, 1f);
 
-        if(!hasAuthority)
+        if(hasAuthority)
+        {
+            // place on top of vertical panel
+            transform.SetAsFirstSibling();
+        }
+        else
         {
             playerNameInput.gameObject.SetActive(false);
         }
@@ -148,8 +153,9 @@ public class ReadyPanel : NetworkBehaviour
 
         if(hasAuthority)
         {
-            readyButton.onClick.RemoveListener(CmdToggleReady);
+            readyButton.onClick.RemoveAllListeners();
             startGameButton.onClick.RemoveListener(CmdStartGame);
+            playerNameInput.onEndEdit.RemoveListener(SetPlayerName);
         }
     }
 
@@ -206,8 +212,6 @@ public class ReadyPanel : NetworkBehaviour
                 name = connectionId == 0 ? "Leader" : string.Format("Player{0}", connectionId),
                 isUserDefined = false
             };
-
-            playerName = Manager.playerNames[connectionId];
         }
         else if(name.Length > 0)
         {
@@ -216,9 +220,16 @@ public class ReadyPanel : NetworkBehaviour
                 name = name,
                 isUserDefined = true
             };
-
-            playerName = Manager.playerNames[connectionId];
         }
+
+        playerName = Manager.playerNames[connectionId];
+
+        // Update player panel name
+        if(Manager.playerPanels.ContainsKey(connectionId))
+        {
+            Manager.playerPanels[connectionId].playerName = playerName.name;
+        }
+
 
         // used to trigger on the client side when a name gets updated
         nameChangeFlag = !nameChangeFlag;
