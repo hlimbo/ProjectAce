@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using ProjectAce;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 
 public class PlayerPanel : NetworkBehaviour
 {
@@ -30,9 +30,6 @@ public class PlayerPanel : NetworkBehaviour
         }
     }
 
-    private GameObject timeLeftLabel;
-    private GameObject timerPanel;
-    private Text timeLeftText;
     private Image timeLeftCircle;
     private Text playerLabel;
     private Text cardsLeftText;
@@ -43,14 +40,13 @@ public class PlayerPanel : NetworkBehaviour
     public int playerNumber;
 
     [SyncVar(hook = nameof(OnClientTimeLeftChanged))]
-    private int timeLeft;
+    private float timeLeft;
     [SyncVar]
-    private int initialTimeLeft;
+    private float initialTimeLeft;
 
-    private void OnClientTimeLeftChanged(int oldTimeLeft, int newTimeLeft)
+    private void OnClientTimeLeftChanged(float _, float newTimeLeft)
     {
-        timeLeftText.text = newTimeLeft.ToString();
-        timeLeftCircle.fillAmount = (float)newTimeLeft / initialTimeLeft;
+        timeLeftCircle.DOFillAmount(newTimeLeft / initialTimeLeft, syncInterval);
     }
 
     [SyncVar(hook = nameof(OnClientHandleCardsLeftCountChanged))]
@@ -95,17 +91,11 @@ public class PlayerPanel : NetworkBehaviour
 
     private void Awake()
     {
-        playerLabel = transform.Find("PlayerLabel")?.GetComponent<Text>();
-        timeLeftText = transform.Find("TimerPanel/Timer/TimeLeft")?.GetComponent<Text>();
-        timeLeftCircle = transform.Find("TimerPanel/Timer")?.GetComponent<Image>();
-        cardsLeftText = transform.Find("CardsLeft")?.GetComponent<Text>();
+        playerLabel = transform.Find("PlayerName")?.GetComponent<Text>();
+        timeLeftCircle = transform.Find("Avatar/Counter")?.GetComponent<Image>();
+        cardsLeftText = transform.Find("CardsLeft/Text")?.GetComponent<Text>();
         rectTransform = GetComponent<RectTransform>();
-
         uiCanvas = GameObject.Find("Canvas")?.transform;
-        timeLeftLabel = transform.Find("TimeLeftLabel")?.gameObject;
-        timerPanel = transform.Find("TimerPanel")?.gameObject;
-        timeLeftLabel.SetActive(false);
-        timerPanel.SetActive(false);
     }
 
     public override void OnStartServer()
@@ -114,6 +104,7 @@ public class PlayerPanel : NetworkBehaviour
         connectionId = connectionToClient.connectionId;
         initialTimeLeft = Manager.InitialTimeLeftPerPlayer;
         isMyTurn = false;
+        timeLeft = 0f;
 
         if(Manager.playerNames.ContainsKey(connectionId))
         {
@@ -137,45 +128,10 @@ public class PlayerPanel : NetworkBehaviour
             Manager.playerPanels[connectionId] = this;
         }
 
-
-        //if (!hasAuthority)
-        //{
-
-        //    if (activePlayerCount == 2)
-        //    {
-        //        // opposing player panel will always be hardcoded to the top-right anchor
-        //        anchorPreset = AnchorPresets.TOP_RIGHT;
-        //        AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
-        //        rectTransform.anchoredPosition = new Vector2(-50f, 0f);
-        //    }
-        //    else if (activePlayerCount > 2 && networkPlayerController != null)
-        //    {
-        //        var opponentCardMat = networkPlayerController.CardMat?.GetComponent<OpponentCardMat>();
-        //        if(opponentCardMat != null)
-        //        {
-        //            Vector2 offset = new Vector2(0f, 0f);
-        //            switch(opponentCardMat.anchorPreset)
-        //            {
-        //                case AnchorPresets.MIDDLE_LEFT:
-        //                    anchorPreset = AnchorPresets.TOP_LEFT;
-        //                    break;
-        //                case AnchorPresets.MIDDLE_RIGHT:
-        //                    anchorPreset = AnchorPresets.BOTTOM_RIGHT;
-        //                    break;
-        //                case AnchorPresets.TOP_CENTER:
-        //                    anchorPreset = AnchorPresets.TOP_RIGHT;
-        //                    offset.Set(-50f, 0f);
-        //                    break;
-        //                default:
-        //                    Debug.LogError("PlayerPanel OnStartClient: could not assign a valid player panel anchor");
-        //                    break;
-        //            }
-
-        //            AnchorPresetsUtils.AssignAnchor(anchorPreset, ref rectTransform);
-        //            rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x + offset.x, rectTransform.anchoredPosition.y + offset.y);
-        //        }
-        //    }
-        //}
+        if(!isMyTurn)
+        {
+            timeLeftCircle.gameObject.SetActive(false);
+        }
     }
 
 
@@ -240,13 +196,6 @@ public class PlayerPanel : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void RpcToggleTimerUI(bool active)
-    {
-        timerPanel?.SetActive(active);
-        timeLeftLabel?.SetActive(active);
-    }
-
     // Server Side only
     private IEnumerator CountdownRoutine(int connectionId)
     {
@@ -261,11 +210,12 @@ public class PlayerPanel : NetworkBehaviour
                 yield break;
             }
 
-            yield return new WaitForSeconds(1f);
-            timeLeft -= 1;
+            // subtraction here accounts for delays that the client will receive the time to update the timer panel
+            yield return new WaitForSeconds(syncInterval - .01f);
+            timeLeft -= syncInterval;
         }
 
-        timeLeft = 0;
+        timeLeft = 0f;
         
         // Need this bit of logic so that the turn system can automatically go to the next
         // player's turn in the event the current player lets all X seconds elapse
@@ -282,5 +232,12 @@ public class PlayerPanel : NetworkBehaviour
     public void SetNetworkPlayerControllerNetId(uint netId)
     {
         networkPlayerControllerNetId = netId;
+    }
+
+    [ClientRpc]
+    private void RpcToggleTimerUI(bool active)
+    {
+        timeLeftCircle.fillAmount = 1f;
+        timeLeftCircle.gameObject.SetActive(active);
     }
 }
