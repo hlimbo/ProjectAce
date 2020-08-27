@@ -128,7 +128,15 @@ public class PlayerPanel : NetworkBehaviour
             Manager.playerPanels[connectionId] = this;
         }
 
-        if(!isMyTurn)
+        // TODO: how to programmatically hue shift between 2 colors
+        // TODO: how to programmatically change hue intensity
+        //bool wolo = timeLeftCircle.material.HasProperty("Color_2FF2C47");
+        //Debug.Log("wolo: " + wolo);
+
+        //Color color = timeLeftCircle.material.GetColor("Color_2FF2C47");
+        //timeLeftCircle.material.SetColor("Color_2FF2C47", Color.white);
+
+        if (!isMyTurn)
         {
             timeLeftCircle.gameObject.SetActive(false);
         }
