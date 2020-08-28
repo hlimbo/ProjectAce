@@ -19,6 +19,12 @@ public class MainMenuController : MonoBehaviour
     private TelepathyTransport tcpTransport;
 
     [SerializeField]
+    private Button joinCardButton;
+
+    [SerializeField]
+    private Button hostCardButton;
+
+    [SerializeField]
     private bool isAttemptingToConnectToServer;
 
     private void Start()
@@ -30,7 +36,11 @@ public class MainMenuController : MonoBehaviour
     // Attached to an Button OnClick event handler
     public void BackButton()
     {
-        menuPanel.SetActive(true);
+        //menuPanel.SetActive(true);
+        joinCardButton.interactable = true;
+        hostCardButton.interactable = true;
+        joinCardButton.GetComponent<CardMenu>().enabled = true;
+        hostCardButton.GetComponent<CardMenu>().enabled = true;
         hostPanel.SetActive(false);
         joinPanel.transform.Find("ErrorText")?.gameObject.SetActive(false);
         joinPanel.SetActive(false);
@@ -39,13 +49,21 @@ public class MainMenuController : MonoBehaviour
 
     public void HostButton()
     {
-        menuPanel.SetActive(false);
+        //menuPanel.SetActive(false);
+        joinCardButton.interactable = false;
+        hostCardButton.interactable = false;
+        joinCardButton.GetComponent<CardMenu>().enabled = false;
+        hostCardButton.GetComponent<CardMenu>().enabled = false;
         hostPanel.SetActive(true);
     }
 
     public void JoinButton()
     {
-        menuPanel.SetActive(false);
+        //menuPanel.SetActive(false);
+        joinCardButton.interactable = false;
+        hostCardButton.interactable = false;
+        joinCardButton.GetComponent<CardMenu>().enabled = false;
+        hostCardButton.GetComponent<CardMenu>().enabled = false;
         joinPanel.SetActive(true);
     }
 
