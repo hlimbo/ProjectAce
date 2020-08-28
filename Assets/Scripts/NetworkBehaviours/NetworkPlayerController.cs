@@ -473,6 +473,7 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             Manager.PlayAgainPanel.gameObject.SetActive(true);
             Manager.PlayAgainPanel.SetWinnerText(winnerName);
+            Manager.PlayAgainPanel.SetWinningAvatar(connectionId);
         }
     }
 

@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
-
+using System.Linq;
+using ProjectAce;
 
 public class PlayAgainPanel : MonoBehaviour
 {
@@ -13,6 +14,7 @@ public class PlayAgainPanel : MonoBehaviour
     private Button playAgainButton;
     private Button cancelButton;
     private ProjectAceNetworkManager manager;
+    private Image winningAvatar;
 
     private void Awake()
     {
@@ -20,6 +22,7 @@ public class PlayAgainPanel : MonoBehaviour
         playAgainButton = transform.Find("OptionsPanel/PlayAgainButton")?.GetComponent<Button>();
         exitButton = transform.Find("OptionsPanel/ExitButton")?.GetComponent<Button>();
         cancelButton = transform.Find("WaitingOnHostPanel/CancelButton")?.GetComponent<Button>();
+        winningAvatar = transform.Find("WinningAvatar/PlayerImage")?.GetComponent<Image>();
 
         exitButton?.onClick.AddListener(Disconnect);        
         manager = FindObjectOfType<ProjectAceNetworkManager>();
@@ -70,5 +73,16 @@ public class PlayAgainPanel : MonoBehaviour
     public void SetWinnerText(string winnerName)
     {
         winnerText.text = string.Format("{0} Wins!", winnerName);
+    }
+
+    public void SetWinningAvatar(int connectionId)
+    {
+        var winningPanel = FindObjectsOfType<PlayerPanel>()
+            .Where(panel => panel.ConnectionId == connectionId).FirstOrDefault();
+
+        if(winningPanel != null && Utils.avatarAssets.ContainsKey(winningPanel.avatarName))
+        {
+            winningAvatar.sprite = Utils.avatarAssets[winningPanel.avatarName];
+        }
     }
 }

@@ -54,6 +54,8 @@ public class ProjectAceNetworkManager : NetworkManager
         { 4, false }
     };
 
+    public readonly Dictionary<int, string> avatarImageNames = new Dictionary<int, string>();
+
 
     private int drawPileCount;
 
@@ -84,6 +86,7 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.Awake();
         Utils.LoadCardAssets();
+        Utils.LoadAvatarAssets();
         currentState = GameState.GAME_LAUNCH;
 
         if(isHeadless)
@@ -120,6 +123,7 @@ public class ProjectAceNetworkManager : NetworkManager
         readyPanels.Clear();
         networkPlayerControllers.Clear();
         turnOrder.Clear();
+        avatarImageNames.Clear();
         currentTurnIndex = 0;
         animIndex = 0;
         dealer = null;
@@ -395,6 +399,11 @@ public class ProjectAceNetworkManager : NetworkManager
             playerPanels.Remove(conn.connectionId);
         }
 
+        if(avatarImageNames.ContainsKey(conn.connectionId))
+        {
+            avatarImageNames.Remove(conn.connectionId);
+        }
+
         // Reset game
         if (isHeadless && networkPlayerControllers.Count == 0)
         {
@@ -556,14 +565,32 @@ public class ProjectAceNetworkManager : NetworkManager
         AddActiveConnectionsToTurnOrderList();
         RandomizePlayerTurnOrders();
         AssignOpponentCardMats();
+        AssignRandomAvatars();
         ConnectedPlayersReceiveCards();
         OnServerUpdateDrawPileCount();
     }
 
+    public void AssignRandomAvatars()
+    {
+        var avatarFileNames = Utils.avatarAssets.Keys.ToArray();
+        for(int i = 0;i < playerPanels.Count; ++i)
+        {
+            int randomIndex = UnityEngine.Random.Range(0, avatarFileNames.Length);
+            if(avatarImageNames.ContainsValue(avatarFileNames[randomIndex]))
+            {
+                // only allow unique names
+                --i;
+                continue;
+            }
+
+            var playerPanel = playerPanels[i];
+            avatarImageNames[playerPanel.ConnectionId] = avatarFileNames[randomIndex];
+            playerPanel.avatarName = avatarFileNames[randomIndex];
+        }
+    }
+
     public void AssignOpponentCardMats()
     {
-        Debug.Log("NETWORK PLAYER CONTROLLERS COUNT: " + networkPlayerControllers.Count);
-
         foreach (var npc in networkPlayerControllers.Values)
         {
             npc.RpcOnClientStartGame();

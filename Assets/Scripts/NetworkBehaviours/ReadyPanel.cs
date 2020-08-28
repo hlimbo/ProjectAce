@@ -6,7 +6,6 @@ using ProjectAce;
 
 public class ReadyPanel : NetworkBehaviour
 {
-
     [SyncVar]
     public int connectionId;
 

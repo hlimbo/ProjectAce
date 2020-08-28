@@ -31,6 +31,7 @@ public class PlayerPanel : NetworkBehaviour
     }
 
     private Image timeLeftCircle;
+    private Image avatarImage;
     private Text playerLabel;
     private Text cardsLeftText;
 
@@ -38,6 +39,17 @@ public class PlayerPanel : NetworkBehaviour
 
     [SyncVar]
     public int playerNumber;
+
+    [SyncVar(hook=nameof(OnClientReceiveAvatarName))]
+    public string avatarName;
+
+    private void OnClientReceiveAvatarName(string _, string newName)
+    {
+        if (Utils.avatarAssets.ContainsKey(newName))
+        {
+            avatarImage.sprite = Utils.avatarAssets[newName];
+        }
+    }
 
     [SyncVar(hook = nameof(OnClientTimeLeftChanged))]
     private float timeLeft;
@@ -93,6 +105,7 @@ public class PlayerPanel : NetworkBehaviour
     {
         playerLabel = transform.Find("PlayerName")?.GetComponent<Text>();
         timeLeftCircle = transform.Find("Avatar/Counter")?.GetComponent<Image>();
+        avatarImage = transform.Find("Avatar/PlayerImage")?.GetComponent<Image>();
         cardsLeftText = transform.Find("CardsLeft/Text")?.GetComponent<Text>();
         rectTransform = GetComponent<RectTransform>();
         uiCanvas = GameObject.Find("Canvas")?.transform;
@@ -128,18 +141,11 @@ public class PlayerPanel : NetworkBehaviour
             Manager.playerPanels[connectionId] = this;
         }
 
-        // TODO: how to programmatically hue shift between 2 colors
-        // TODO: how to programmatically change hue intensity
-        //bool wolo = timeLeftCircle.material.HasProperty("Color_2FF2C47");
-        //Debug.Log("wolo: " + wolo);
-
-        //Color color = timeLeftCircle.material.GetColor("Color_2FF2C47");
-        //timeLeftCircle.material.SetColor("Color_2FF2C47", Color.white);
-
         if (!isMyTurn)
         {
             timeLeftCircle.gameObject.SetActive(false);
         }
+
     }
 
 
