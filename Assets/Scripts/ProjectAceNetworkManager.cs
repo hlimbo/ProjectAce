@@ -160,6 +160,19 @@ public class ProjectAceNetworkManager : NetworkManager
     public void TryAddCardToFaceUpPile(int clientConnectionId, Card card)
     {
         NetworkConnectionToClient conn = NetworkServer.connections[clientConnectionId];
+
+        // Don't validate card if it isn't the player's turn
+        if(playerPanels.ContainsKey(clientConnectionId))
+        {
+            var playerPanel = playerPanels[clientConnectionId];
+            if(!playerPanel.IsMyTurn)
+            {
+                networkPlayerControllers[clientConnectionId].TargetCardPlacementFailed(conn, card);
+                return;
+            }
+        }
+
+
         if(GameRules2.ValidateCard(dealer.TopCard, card))
         {
             bool canAddCard = dealer.AddCardToFaceUpPile2(card);

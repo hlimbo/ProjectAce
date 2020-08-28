@@ -4,6 +4,7 @@ using ProjectAce;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using System.Linq;
 
 public class CardController : MonoBehaviour
 {
@@ -65,7 +66,18 @@ public class CardController : MonoBehaviour
     public void SendCardToServer()
     {
         clickHandler.enabled = false;
-        owner.CmdSendCardToDealer(card);
+
+        // check if it is still the player's turn here
+        var panel = FindObjectsOfType<PlayerPanel>().Where(p => p.ConnectionId == owner.ConnectionId).FirstOrDefault();
+        if(panel == null)
+        {
+            return;
+        }
+
+        if(panel.IsMyTurn)
+        {
+            owner.CmdSendCardToDealer(card);
+        }
     }
 
     public void ToggleClickHandlerBehaviour(bool isEnabled)
