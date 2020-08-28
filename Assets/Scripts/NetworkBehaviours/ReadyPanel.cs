@@ -169,14 +169,6 @@ public class ReadyPanel : NetworkBehaviour
     private void HandleGameStart(bool oldHasGameStart, bool newHasGameStart)
     {
         lobbyPanel?.SetActive(!newHasGameStart);
-        // Hack - ready panels vanish when Canvas render mode is set to Camera
-        // To ensure this doesn't happen, programmatically change render mode to camera when lobby panel is disabled
-        if(!lobbyPanel.activeInHierarchy)
-        {
-            var canvas = GameObject.Find("Canvas").GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceCamera;
-            canvas.worldCamera = Camera.main;
-        }
     }
 
     private void SetPlayerName()

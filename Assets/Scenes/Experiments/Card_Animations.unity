@@ -581,7 +581,7 @@ Camera:
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
   m_TargetEye: 3
-  m_HDR: 1
+  m_HDR: 0
   m_AllowMSAA: 1
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
@@ -920,7 +920,7 @@ Canvas:
   m_GameObject: {fileID: 393669196}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 1
+  m_RenderMode: 0
   m_Camera: {fileID: 220114016}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
@@ -3965,7 +3965,7 @@ MonoBehaviour:
   priority: 0
   blendDistance: 0
   weight: 1
-  sharedProfile: {fileID: 11400000, guid: e0b6b08fc899ac54c971c12c32c9feef, type: 2}
+  sharedProfile: {fileID: 0}
 --- !u!4 &1599613676
 Transform:
   m_ObjectHideFlags: 0
@@ -5471,7 +5471,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 8120162318765204979}
   m_HandleRect: {fileID: 8120162318765204976}
   m_Direction: 0
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
