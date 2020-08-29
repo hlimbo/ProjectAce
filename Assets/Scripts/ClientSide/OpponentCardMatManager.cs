@@ -118,6 +118,7 @@ public class OpponentCardMatManager : MonoBehaviour
                 unownedPanel.anchorPreset = AnchorPresets.TOP_RIGHT;
                 var rectTransform = unownedPanel.GetComponent<RectTransform>();
                 AnchorPresetsUtils.AssignAnchor(unownedPanel.anchorPreset, ref rectTransform);
+                // offset
                 rectTransform.anchoredPosition = new Vector2(-50f, 0f);
             }
         }

@@ -586,6 +586,7 @@ public class ProjectAceNetworkManager : NetworkManager
     public void AssignRandomAvatars()
     {
         var avatarFileNames = Utils.avatarAssets.Keys.ToArray();
+        var connIds = playerPanels.Keys.ToArray();
         for(int i = 0;i < playerPanels.Count; ++i)
         {
             int randomIndex = UnityEngine.Random.Range(0, avatarFileNames.Length);
@@ -596,7 +597,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 continue;
             }
 
-            var playerPanel = playerPanels[i];
+            var playerPanel = playerPanels[connIds[i]];
             avatarImageNames[playerPanel.ConnectionId] = avatarFileNames[randomIndex];
             playerPanel.avatarName = avatarFileNames[randomIndex];
         }

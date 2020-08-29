@@ -35,6 +35,9 @@ public class PlayerPanel : NetworkBehaviour
     private Text playerLabel;
     private Text cardsLeftText;
 
+    private Image counterFx;
+    private Sequence pulseSequence;
+
     public AnchorPresets anchorPreset;
 
     [SyncVar]
@@ -105,10 +108,19 @@ public class PlayerPanel : NetworkBehaviour
     {
         playerLabel = transform.Find("PlayerName")?.GetComponent<Text>();
         timeLeftCircle = transform.Find("Avatar/Counter")?.GetComponent<Image>();
+        counterFx = transform.Find("CounterFX")?.GetComponent<Image>();
         avatarImage = transform.Find("Avatar/PlayerImage")?.GetComponent<Image>();
         cardsLeftText = transform.Find("CardsLeft/Text")?.GetComponent<Text>();
         rectTransform = GetComponent<RectTransform>();
         uiCanvas = GameObject.Find("Canvas")?.transform;
+
+        pulseSequence = DOTween.Sequence();
+        pulseSequence
+            .Append(counterFx.transform.DOScaleX(1.25f, 1f))
+            .Join(counterFx.transform.DOScaleY(1.25f, 1f))
+            .Join(counterFx.DOFade(0f, 1.5f))
+            .SetLoops(-1, LoopType.Restart)
+            .Pause();
     }
 
     public override void OnStartServer()
@@ -131,7 +143,7 @@ public class PlayerPanel : NetworkBehaviour
 
         transform.SetParent(uiCanvas);
         transform.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f);
-        transform.GetComponent<RectTransform>().localScale = new Vector3(0.75f, 0.75f, 0.75f);
+        transform.GetComponent<RectTransform>().localScale = new Vector3(0.8f,0.8f,0.8f);
         // Hack - hides the player panel from being visible from the lobby by rendering it behind the lobby game object
         transform.SetAsFirstSibling();
 
@@ -155,7 +167,6 @@ public class PlayerPanel : NetworkBehaviour
 
         anchorPreset = AnchorPresets.BOTTOM_LEFT;
         AnchorPresetsUtils.AssignAnchor(AnchorPresets.BOTTOM_LEFT, ref rectTransform);
-        rectTransform.anchoredPosition = new Vector2(0f, 30f);
 
         if(networkPlayerController != null)
         {
@@ -253,5 +264,15 @@ public class PlayerPanel : NetworkBehaviour
     {
         timeLeftCircle.fillAmount = 1f;
         timeLeftCircle.gameObject.SetActive(active);
+
+        if (active)
+        {
+            pulseSequence.Play();    
+        }
+        else
+        {
+            pulseSequence.Rewind();
+        }
+
     }
 }
