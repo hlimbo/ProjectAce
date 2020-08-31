@@ -108,7 +108,7 @@ MonoBehaviour:
   - {fileID: 7389259222150182251, guid: e5f677d262fb4294e90dafa3375f3838, type: 3}
   - {fileID: 562098784092836428, guid: 8083dd7e0505ac94a972a2b883dfd873, type: 3}
   - {fileID: 7015162978980405029, guid: 7caa4961ada06eb4f87fae095c743a06, type: 3}
-  startingCardCountPerPlayer: 8
+  startingCardCountPerPlayer: 1
   initialTimeLeftPerPlayer: 15
   readyPrefab: {fileID: 7389259222150182251, guid: e5f677d262fb4294e90dafa3375f3838,
     type: 3}

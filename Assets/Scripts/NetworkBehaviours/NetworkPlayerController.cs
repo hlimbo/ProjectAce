@@ -28,6 +28,9 @@ public class NetworkPlayerController : NetworkBehaviour
     private Queue<GameObject> placeholders = new Queue<GameObject>();
     private Transform drawPileGraphic;
 
+    [SerializeField]
+    private AudioManager audioManager;
+
     [System.Serializable]
     public class SyncListCards : SyncList<Card> { }
     public readonly SyncListCards myCards = new SyncListCards();
@@ -83,7 +86,9 @@ public class NetworkPlayerController : NetworkBehaviour
         opponentCardPrefab = Resources.Load<GameObject>("Prefabs/OpponentFaceUpCard");
         hand = new List<CardController>();
         hand.Clear();
-        faceUpHolder = GameObject.Find("FaceUpHolder")?.transform;        
+        faceUpHolder = GameObject.Find("FaceUpHolder")?.transform;
+
+        audioManager = GameObject.Find("AudioManager")?.GetComponent<AudioManager>();
     }
 
     public override void OnStartServer()
@@ -96,17 +101,17 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         base.OnStartClient();
 
-        if(NetworkClient.connection != null)
+        if (NetworkClient.connection != null)
         {
             Debug.Log("My connectionId: " + connectionId);
         }
 
-        if(isClientOnly)
+        if (isClientOnly)
         {
             Manager.networkPlayerControllers[connectionId] = this;
         }
 
-        if(!hasAuthority)
+        if (!hasAuthority)
         {
             myCards.Callback += OnClientOpponentCardsUpdated;
         }
@@ -132,9 +137,9 @@ public class NetworkPlayerController : NetworkBehaviour
     public void MoveCardsDown()
     {
         Debug.Log("MOVING CARDS DOWN!!!!!!! ON NPC EVENT END TURN");
-        foreach(var card in hand)
+        foreach (var card in hand)
         {
-            if(card.IsRaised)
+            if (card.IsRaised)
             {
                 card.MoveBackToOriginalLocalPosition();
             }
@@ -144,8 +149,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
     public void DisableCards()
     {
-        Debug.Log("DisableCards card count: " + hand.Count);
-        foreach(var card in hand)
+        foreach (var card in hand)
         {
             card.DisableInteraction();
         }
@@ -166,7 +170,7 @@ public class NetworkPlayerController : NetworkBehaviour
         }
 
         bool areAllCardsMovedBack = false;
-        while(!areAllCardsMovedBack)
+        while (!areAllCardsMovedBack)
         {
             areAllCardsMovedBack = true;
             foreach (var card in raisedCards)
@@ -176,14 +180,12 @@ public class NetworkPlayerController : NetworkBehaviour
 
             yield return null;
         }
-
-        CmdCheckIfPlayerDrawsACard();
     }
 
-    [Command]
-    public void CmdCheckIfPlayerDrawsACard()
+    [Server]
+    public void CheckIfPlayerDrawsACard()
     {
-        if(hasPlayedCardOrComboThisTurn)
+        if (hasPlayedCardOrComboThisTurn)
         {
             hasPlayedCardOrComboThisTurn = false;
         }
@@ -228,6 +230,7 @@ public class NetworkPlayerController : NetworkBehaviour
         LayoutRebuilder.MarkLayoutForRebuild(parent.GetComponent<RectTransform>());
         yield return new WaitForEndOfFrame();
 
+        int totalCardCount = cardsToDraw.Count;
         while (cardsToDraw.Count > 0)
         {
             var placeholder = placeholders.Dequeue();
@@ -256,13 +259,21 @@ public class NetworkPlayerController : NetworkBehaviour
         }
 
         isCoroutineRunning = false;
-        CmdCheckForTurn();
+        
+        // Check if player is receiving their hand when the game first starts
+        // This is done to prevent calling TargetEnableControls multiple times
+        if(isReceivingInitialHand)
+        {
+            CmdCheckForTurn();
+            isReceivingInitialHand = false;
+        }
     }
 
     // Goal: separate client-side only related variables from host/network dependent variables
     private void OnClientMyCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
-        if(op == SyncListCards.Operation.OP_ADD)
+        CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
+        if (op == SyncListCards.Operation.OP_ADD)
         {
             Debug.Log("Addding card: " + newCard);
             GameObject myNewCard = Instantiate(cardPrefab);
@@ -294,22 +305,13 @@ public class NetworkPlayerController : NetworkBehaviour
             cardsToDraw.Enqueue(myNewCard);
             cardValuesToDraw.Enqueue(newCard);
             placeholders.Enqueue(placeholder);
+        }
+    }
 
-        }
-        else if(op == SyncListCards.Operation.OP_REMOVEAT)
-        {
-            CmdCheckForWinner(connectionId);
-        }
-        else if(op == SyncListCards.Operation.OP_SET)
-        {
-            Debug.Log("Client A Card was modified at index: " + index);
-        }
-        else if(op == SyncListCards.Operation.OP_CLEAR)
-        {
-            Debug.Log("Cards are cleared");
-        }
-
-        CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
+    [Command]
+    private void CmdCheckGameStatus()
+    {
+        Manager.CheckGameStatus(connectionId);
     }
 
     [Command]
@@ -366,6 +368,8 @@ public class NetworkPlayerController : NetworkBehaviour
         cardToRemove.isPlacedOnTable = true;
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
 
+        audioManager.PlayClip("cardPlacedOnTable");
+
         hand.Remove(cardToRemove);
         CmdRemoveCard(card);
     }
@@ -373,6 +377,8 @@ public class NetworkPlayerController : NetworkBehaviour
     [ClientRpc(excludeOwner = true)]
     public void RpcRemoveOpponentCardFromHand(Card card, int animIndex)
     {
+        audioManager.PlayClip("cardPlacedOnTable");
+
         // Opponent Card Animation //
         Debug.LogFormat("RpcRemoveOpponentCardFromHand: removing card {0}", card);
         var cardGO = Instantiate(opponentCardPrefab, faceUpHolder, false);
@@ -403,6 +409,8 @@ public class NetworkPlayerController : NetworkBehaviour
             {
                 c.GetComponent<OpponentFaceUpCard>().PlayAnimation(animIndex);
             }
+
+            audioManager.PlayClip("cardPlacedOnTable");
 
             yield return new WaitForSeconds(0.75f);
         }
@@ -460,11 +468,6 @@ public class NetworkPlayerController : NetworkBehaviour
         RunCardsAnimsRoutine();
     }
 
-    [Command]
-    private void CmdCheckForWinner(int clientConnectionId)
-    {
-        Manager.CheckForWinner(clientConnectionId);
-    }
 
     [ClientRpc]
     public void RpcEnablePlayAgainPanel(int clientConnectionId, string winnerName)
@@ -477,15 +480,29 @@ public class NetworkPlayerController : NetworkBehaviour
         }
     }
 
+    [TargetRpc]
+    public void TargetOnClientPlayGameOverSound(NetworkConnection clientConnection, string clipName)
+    {
+        audioManager.PlayClip(clipName);
+    }
+
     [Command]
     private void CmdRemoveCard(Card card)
     {
         myCards.Remove(card);
     }
 
+    private bool isReceivingInitialHand;
+    [TargetRpc]
+    public void TargetPlayerReceivesInitialHand(NetworkConnection clientConnection)
+    {
+        isReceivingInitialHand = true;
+    }
+
     [TargetRpc]
     public void TargetEnableControls(NetworkConnection clientConnection)
     {
+        Debug.Log("TargetEnableControls called");
         canEnableComboButton = true;
         endTurnButton.SetActive(true);
 
@@ -493,6 +510,8 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             card.ToggleClickHandlerBehaviour(true);
         }
+
+        audioManager.PlayClip("turnNotification");
     }
 
     [TargetRpc]
@@ -510,6 +529,7 @@ public class NetworkPlayerController : NetworkBehaviour
         CardController cardController = hand.Where(h => h.card.Equals(card)).FirstOrDefault();
         if(cardController != null)
         {
+            audioManager.PlayClip("cardShove");
             cardController.MoveBackToOriginalLocalPosition();
         }
     }
@@ -538,13 +558,6 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         // Safeguard to prevent other network player controllers from moving other player cards down
         if (!hasAuthority) return;
-
-        Debug.Log("The following cards cannot be combo-ed together for player " + connection.connectionId);
-        Debug.Log("Card Length: " + cards.Length);
-        foreach(var card in cards)
-        {
-            Debug.Log(card);
-        }
 
         // Move cards down
         foreach(var cardSelector in hand)
@@ -658,5 +671,26 @@ public class NetworkPlayerController : NetworkBehaviour
                 }
             }
         }
+    }
+
+    [TargetRpc]
+    public void TargetOnClientPlayDealCardSounds(NetworkConnection clientConnection)
+    {
+        StartCoroutine(DealCardSounds());
+    }
+
+    private IEnumerator DealCardSounds()
+    {
+        for (int i = 0; i < Manager.StartingCardCountPerPlayer; ++i)
+        {
+            audioManager.PlayClip("drawCard");
+            yield return new WaitForSeconds(audioManager.GetCurrentClipDuration());
+        }
+    }
+
+    [TargetRpc]
+    public void TargetOnClientPlayDrawCardSound(NetworkConnection clientConnection)
+    {
+        audioManager.PlayClip("drawCard");
     }
 }

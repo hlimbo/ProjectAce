@@ -22,6 +22,8 @@ public class ProjectAceNetworkManager : NetworkManager
 
     [SerializeField]
     private int startingCardCountPerPlayer = 8;
+    public int StartingCardCountPerPlayer => startingCardCountPerPlayer;
+
     [SerializeField]
     private int initialTimeLeftPerPlayer = 10; // seconds
     public int InitialTimeLeftPerPlayer => initialTimeLeftPerPlayer;
@@ -184,10 +186,13 @@ public class ProjectAceNetworkManager : NetworkManager
                 }
 
                 Debug.Log("[SERVER]: CARD CAN BE PLAYED THIS TURN!!!!!! " + card);
-                networkPlayerControllers[clientConnectionId].RpcRemoveOpponentCardFromHand(card, animIndex);
-                networkPlayerControllers[clientConnectionId].TargetRemoveMyCardFromHand(conn, card, animIndex);
+                var npc = networkPlayerControllers[clientConnectionId];
+                npc.myCards.Remove(card);
+                npc.RpcRemoveOpponentCardFromHand(card, animIndex);
+                npc.TargetRemoveMyCardFromHand(conn, card, animIndex);
                 animIndex = (animIndex + 1) % ANIM_VARIATION_COUNT;
-                GoToNextTurn();
+
+                CheckGameStatus(clientConnectionId);
             }
             else
             {
@@ -197,6 +202,22 @@ public class ProjectAceNetworkManager : NetworkManager
         else
         {
             networkPlayerControllers[clientConnectionId].TargetCardPlacementFailed(conn, card);
+        }
+    }
+
+    public void CheckGameStatus(int clientConnectionId)
+    {
+        CheckForWinner(clientConnectionId);
+
+        Debug.Log("Current Game Status: " + currentState);
+
+        if (currentState == GameState.GAME_END)
+        {
+            HandleWinState(clientConnectionId);
+        }
+        else
+        {
+            GoToNextTurn();
         }
     }
 
@@ -212,6 +233,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if (newCard != null && networkPlayerControllers.ContainsKey(connectionId))
         {
             networkPlayerControllers[connectionId].myCards.Add((Card)newCard);
+            networkPlayerControllers[connectionId].TargetOnClientPlayDrawCardSound(networkPlayerControllers[connectionId].connectionToClient);
             OnServerUpdateDrawPileCount();
         }
     }
@@ -447,10 +469,17 @@ public class ProjectAceNetworkManager : NetworkManager
             var clientConnectionId = kvp.Key;
             var npc = kvp.Value;
             var cards = DealerGiveCards();
+
+            npc.TargetOnClientPlayDealCardSounds(npc.connectionToClient);
             foreach (var card in cards)
             {
                 npc.myCards.Add(card);
             }
+
+            // Since MIrror bundles adding multiple objects in a SyncList together,
+            // A message will need to be sent to the client indicating this is a special case
+            // for when a player receives their initial hand
+            npc.TargetPlayerReceivesInitialHand(npc.connectionToClient);
 
             Debug.LogFormat("[Server]: Player {0} cards count: {1}: ", clientConnectionId, npc.myCards.Count);
 
@@ -515,6 +544,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 var npc = networkPlayerControllers[endingTurnClientConnectionId];
                 npc.TargetMoveRaisedCardsDown(NetworkServer.connections[endingTurnClientConnectionId]);
                 npc.TargetDisableControls(NetworkServer.connections[endingTurnClientConnectionId]);
+                npc.CheckIfPlayerDrawsACard();
             }
         }
 
@@ -633,7 +663,7 @@ public class ProjectAceNetworkManager : NetworkManager
         }
     }
 
-    public void CheckForWinner(int clientConnectionId)
+    private void CheckForWinner(int clientConnectionId)
     {
         if(networkPlayerControllers.ContainsKey(clientConnectionId))
         {
@@ -641,20 +671,35 @@ public class ProjectAceNetworkManager : NetworkManager
             if(networkPlayerController.myCards.Count == 0)
             {
                 networkPlayerControllers[clientConnectionId].RpcEnablePlayAgainPanel(clientConnectionId, playerNames[clientConnectionId].name);
-                networkPlayerControllers[gameLeaderIndex].TargetHostEnablePlayAgainButton(NetworkServer.connections[gameLeaderIndex]);
+                networkPlayerControllers[gameLeaderIndex].TargetHostEnablePlayAgainButton(networkPlayerControllers[gameLeaderIndex].connectionToClient);
                 currentState = GameState.GAME_END;
             }
         }
+    }
 
+    private void HandleWinState(int clientConnectionId)
+    {
         // End Game
-        if(currentState == GameState.GAME_END)
+        if (currentState == GameState.GAME_END)
         {
             foreach (var kvp in NetworkServer.connections)
             {
                 int connectionId = kvp.Key;
                 playerPanels[connectionId].StopCountdown(connectionId);
                 networkPlayerControllers[connectionId].TargetDisableControls(kvp.Value);
+
+                // Play winner/loser voiceover sound
+                
+                if (connectionId == clientConnectionId)
+                {
+                    networkPlayerControllers[connectionId].TargetOnClientPlayGameOverSound(networkPlayerControllers[connectionId].connectionToClient, "winner");
+                }
+                else
+                {
+                    networkPlayerControllers[connectionId].TargetOnClientPlayGameOverSound(networkPlayerControllers[connectionId].connectionToClient, "loser");
+                }
             }
+
         }
     }
 
@@ -686,13 +731,22 @@ public class ProjectAceNetworkManager : NetworkManager
                 
                 networkPlayerControllers[clientConnectionId].TargetRemoveCardsFromMyHand(NetworkServer.connections[clientConnectionId], cards, animIndices);
                 networkPlayerControllers[clientConnectionId].RpcRemoveOpponentCardsFromHand(cards, animIndices);
-                GoToNextTurn();
+
+                CheckGameStatus(clientConnectionId);
             }
         }
         else
         {
             if(NetworkServer.connections.TryGetValue(clientConnectionId, out NetworkConnectionToClient clientConnection))
             {
+                // Logging
+                Debug.Log("[Server]: The following cards cannot be combo-ed together for player " + clientConnectionId);
+                Debug.Log("[Server]: Card Length: " + cards.Length);
+                foreach (var card in cards)
+                {
+                    Debug.Log(card);
+                }
+
                 networkPlayerController?.TargetOnComboInvalid(clientConnection, cards);
             }
         }

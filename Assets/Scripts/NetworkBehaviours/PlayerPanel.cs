@@ -35,6 +35,8 @@ public class PlayerPanel : NetworkBehaviour
     private Text playerLabel;
     private Text cardsLeftText;
 
+    private Color originalLabelColor;
+
     private Image counterFx;
     private Sequence pulseSequence;
 
@@ -121,6 +123,9 @@ public class PlayerPanel : NetworkBehaviour
             .Join(counterFx.DOFade(0f, 1.5f))
             .SetLoops(-1, LoopType.Restart)
             .Pause();
+
+        originalLabelColor = playerLabel.color;
+
     }
 
     public override void OnStartServer()
@@ -157,7 +162,6 @@ public class PlayerPanel : NetworkBehaviour
         {
             timeLeftCircle.gameObject.SetActive(false);
         }
-
     }
 
 
@@ -200,6 +204,7 @@ public class PlayerPanel : NetworkBehaviour
     {
         StopAllCoroutines();
         RpcToggleTimerUI(true);
+        RpcToggleHighlightPlayerLabel(true);
         StartCoroutine(CountdownRoutine(connectionId));
     }
 
@@ -208,6 +213,7 @@ public class PlayerPanel : NetworkBehaviour
     {
         isMyTurn = false;
         RpcToggleTimerUI(false);
+        RpcToggleHighlightPlayerLabel(false);
         EventEndTurn();
 
         // Single Player Mode only
@@ -274,5 +280,20 @@ public class PlayerPanel : NetworkBehaviour
             pulseSequence.Rewind();
         }
 
+    }
+
+    [ClientRpc]
+    private void RpcToggleHighlightPlayerLabel(bool toggle)
+    {
+        if(toggle)
+        {
+            playerLabel.color = Color.yellow;
+            playerLabel.fontStyle = FontStyle.Bold;
+        }
+        else
+        {
+            playerLabel.color = originalLabelColor;
+            playerLabel.fontStyle = FontStyle.Normal;
+        }
     }
 }
