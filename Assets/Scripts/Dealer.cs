@@ -40,7 +40,7 @@ public class Dealer : NetworkBehaviour
     {
         drawPile.Clear();
         drawPile.FillCards();
-        //drawPile.Shuffle();
+        drawPile.Shuffle();
     }
 
     public Card[] GetCards(int cardCount)

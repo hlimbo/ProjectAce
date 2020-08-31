@@ -96,6 +96,15 @@ public class ProjectAceNetworkManager : NetworkManager
             Debug.Log("[Headless Mode]: Starting Server");
             this.StartServer();
         }
+
+        SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
+    }
+
+    private void SceneManager_activeSceneChanged(Scene oldScene, Scene newScene)
+    {
+        Debug.Log("Scene changing to: " + newScene.name);
+        ResetGame();
+        currentState = GameState.LOBBY;
     }
 
     public override void OnServerSceneChanged(string sceneName)
@@ -317,6 +326,13 @@ public class ProjectAceNetworkManager : NetworkManager
     public override void OnClientSceneChanged(NetworkConnection conn)
     {
         base.OnClientSceneChanged(conn);
+
+        if(SceneManager.GetActiveScene().path.Equals(offlineScene))
+        {
+            Debug.Log("Resetting client pan manager variables");
+            ResetGame();
+            currentState = GameState.LOBBY;
+        }
 
         Debug.Log("OnClientSceneChanged: " + SceneManager.GetActiveScene().name);
 
@@ -604,6 +620,8 @@ public class ProjectAceNetworkManager : NetworkManager
     public void StartGame()
     {
         currentState = GameState.GAME_IN_PROGRESS;
+
+        Debug.Log("starting game");
 
         AddActiveConnectionsToTurnOrderList();
         RandomizePlayerTurnOrders();

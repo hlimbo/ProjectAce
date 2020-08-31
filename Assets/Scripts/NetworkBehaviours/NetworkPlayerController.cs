@@ -309,12 +309,6 @@ public class NetworkPlayerController : NetworkBehaviour
     }
 
     [Command]
-    private void CmdCheckGameStatus()
-    {
-        Manager.CheckGameStatus(connectionId);
-    }
-
-    [Command]
     private void CmdUpdateNumberOfCardsLeft(int connectionId, int cardCount)
     {
         if(Manager.playerPanels.ContainsKey(connectionId))
