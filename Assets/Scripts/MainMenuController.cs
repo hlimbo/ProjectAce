@@ -49,12 +49,14 @@ public class MainMenuController : MonoBehaviour
 
     public void HostButton()
     {
+#if UNITY_STANDALONE
         //menuPanel.SetActive(false);
         joinCardButton.interactable = false;
         hostCardButton.interactable = false;
         joinCardButton.GetComponent<CardMenu>().enabled = false;
         hostCardButton.GetComponent<CardMenu>().enabled = false;
         hostPanel.SetActive(true);
+#endif
     }
 
     public void JoinButton()
@@ -69,8 +71,10 @@ public class MainMenuController : MonoBehaviour
 
     public void StopServer()
     {
+#if UNITY_STANDALONE
         Debug.Log("Stopping server....." + manager.networkAddress);
         manager.StopHost();
+#endif
     }
 
     public void CancelButton()
@@ -84,6 +88,7 @@ public class MainMenuController : MonoBehaviour
 
     public void StartServer()
     {
+#if UNITY_STANDALONE
         if(NetworkServer.active || NetworkClient.active)
         {
             Debug.Log("Server already started... disconnect first to start server again");
@@ -107,6 +112,7 @@ public class MainMenuController : MonoBehaviour
         ushort.TryParse(port, out tcpTransport.port);
 
         manager.StartHost();
+#endif
     }
 
     // Attempt to Join Server
