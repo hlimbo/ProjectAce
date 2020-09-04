@@ -850,7 +850,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 268875507}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e0e43a3b168fed247acc23cae4a41bea, type: 3}
   m_Name: 
@@ -862,7 +862,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 268875507}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
@@ -1591,7 +1591,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.36}
   m_AnchorMax: {x: 1, y: 0.36}
-  m_AnchoredPosition: {x: 1.9000244, y: 4.6999817}
+  m_AnchoredPosition: {x: 1.8999023, y: 4.6999817}
   m_SizeDelta: {x: -411.8, y: 223.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &556314100
@@ -1959,7 +1959,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.36}
   m_AnchorMax: {x: 1, y: 0.36}
-  m_AnchoredPosition: {x: 1.9000244, y: 4.6999817}
+  m_AnchoredPosition: {x: 1.8999023, y: 4.6999817}
   m_SizeDelta: {x: -411.8, y: 223.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &728302792
@@ -2109,7 +2109,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.7266667}
   m_AnchorMax: {x: 1, y: 0.7266667}
-  m_AnchoredPosition: {x: 1.9000244, y: -2}
+  m_AnchoredPosition: {x: 1.8999023, y: -2}
   m_SizeDelta: {x: 0, y: 91.6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1100005949
@@ -2350,7 +2350,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1335328678}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
@@ -2644,7 +2644,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.36}
   m_AnchorMax: {x: 1, y: 0.36}
-  m_AnchoredPosition: {x: 1.9000244, y: 4.6999817}
+  m_AnchoredPosition: {x: 1.8999023, y: 4.6999817}
   m_SizeDelta: {x: -411.8, y: 223.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1422179507
@@ -3603,7 +3603,7 @@ MonoBehaviour:
   joinPanel: {fileID: 1754413849}
   joinInProgressPanel: {fileID: 556314098}
   manager: {fileID: 0}
-  tcpTransport: {fileID: 0}
+  transports: []
   joinCardButton: {fileID: 548281603}
   hostCardButton: {fileID: 268875513}
   isAttemptingToConnectToServer: 0
@@ -3666,7 +3666,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.36}
   m_AnchorMax: {x: 1, y: 0.36}
-  m_AnchoredPosition: {x: 1.9000244, y: 4.6999817}
+  m_AnchoredPosition: {x: 1.8999023, y: 4.6999817}
   m_SizeDelta: {x: -411.8, y: 223.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1754413851

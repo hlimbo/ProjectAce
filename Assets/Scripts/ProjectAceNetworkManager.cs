@@ -2,11 +2,12 @@
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Mirror;
-using System;
+using System.Collections;
 using System.Collections.Generic;
 using ProjectAce;
 using ProjectAce.CustomNetworkMessages;
 using System.Linq;
+using Mirror.Websocket;
 
 public class ProjectAceNetworkManager : NetworkManager
 {
@@ -21,13 +22,14 @@ public class ProjectAceNetworkManager : NetworkManager
     public static GameState currentState;
 
     [SerializeField]
-    private int startingCardCountPerPlayer = 8;
-    public int StartingCardCountPerPlayer => startingCardCountPerPlayer;
+    [Header("Server Config Settings")]
+    private ServerConfigs serverConfigs;
 
-    [SerializeField]
-    private int initialTimeLeftPerPlayer = 10; // seconds
-    public int InitialTimeLeftPerPlayer => initialTimeLeftPerPlayer;
+    public int StartingCardCountPerPlayer => serverConfigs.startingCardCountPerPlayer;   
+    // measured in seconds
+    public int InitialTimeLeftPerPlayer => serverConfigs.initialTimeLeftPerPlayer;
 
+    [Header("GameObject Prefabs")]
     [SerializeField]
     private GameObject readyPrefab;
     [SerializeField]
@@ -57,9 +59,6 @@ public class ProjectAceNetworkManager : NetworkManager
     };
 
     public readonly Dictionary<int, string> avatarImageNames = new Dictionary<int, string>();
-
-
-    private int drawPileCount;
 
     // Only exists Server-Side
     private Dealer dealer;
@@ -94,7 +93,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if(isHeadless)
         {
             Debug.Log("[Headless Mode]: Starting Server");
-            this.StartServer();
+            InitServerPorts();
         }
 
         SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
@@ -474,7 +473,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
     private void OnClientDrawPileMessageReceived(NetworkConnection conn, DrawPileMessage message)
     {
-        drawPileCount = message.cardsLeft;
         drawPileCountText.text = message.cardsLeft.ToString();
     }
 
@@ -518,7 +516,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if(dealer != null)
         {
             // Debug.Log("DealerGiveCards: dealing x cards = " + startingCardCountPerPlayer);
-            return dealer.GetCards(startingCardCountPerPlayer);
+            return dealer.GetCards(StartingCardCountPerPlayer);
         }
 
         Debug.LogWarning("Dealer Object has not been instantied on the server and is null");
@@ -829,4 +827,12 @@ public class ProjectAceNetworkManager : NetworkManager
         }
     }
 
+    public void InitServerPorts()
+    {
+        serverConfigs = ServerConfigs.GenerateConfigs();
+        var tcpTransport = GetComponent<TelepathyTransport>();
+        var websocketTransport = GetComponent<WebsocketTransport>();
+        tcpTransport.port = serverConfigs.tcpPort;
+        websocketTransport.port = serverConfigs.websocketPort;
+    }
 }

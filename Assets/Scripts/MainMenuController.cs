@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
+using Mirror.Websocket;
+using System.Collections.Generic;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -15,8 +17,6 @@ public class MainMenuController : MonoBehaviour
 
     [SerializeField]
     private NetworkManager manager;
-    [SerializeField]
-    private TelepathyTransport tcpTransport;
 
     [SerializeField]
     private Button joinCardButton;
@@ -30,7 +30,9 @@ public class MainMenuController : MonoBehaviour
     private void Start()
     {
         manager = FindObjectOfType<NetworkManager>();
-        tcpTransport = FindObjectOfType<TelepathyTransport>();
+#if !UNITY_STANDALONE && !UNITY_EDITOR
+        DisableHostCardButton();
+#endif
     }
 
     // Attached to an Button OnClick event handler
@@ -38,24 +40,14 @@ public class MainMenuController : MonoBehaviour
     {
         //menuPanel.SetActive(true);
         joinCardButton.interactable = true;
-        hostCardButton.interactable = true;
         joinCardButton.GetComponent<CardMenu>().enabled = true;
-        hostCardButton.GetComponent<CardMenu>().enabled = true;
         hostPanel.SetActive(false);
         joinPanel.transform.Find("ErrorText")?.gameObject.SetActive(false);
         joinPanel.SetActive(false);
-    }
 
-
-    public void HostButton()
-    {
-#if UNITY_STANDALONE
-        //menuPanel.SetActive(false);
-        joinCardButton.interactable = false;
-        hostCardButton.interactable = false;
-        joinCardButton.GetComponent<CardMenu>().enabled = false;
-        hostCardButton.GetComponent<CardMenu>().enabled = false;
-        hostPanel.SetActive(true);
+#if UNITY_STANDALONE || UNITY_EDITOR
+        hostCardButton.interactable = true;
+        hostCardButton.GetComponent<CardMenu>().enabled = true;
 #endif
     }
 
@@ -63,17 +55,12 @@ public class MainMenuController : MonoBehaviour
     {
         //menuPanel.SetActive(false);
         joinCardButton.interactable = false;
-        hostCardButton.interactable = false;
         joinCardButton.GetComponent<CardMenu>().enabled = false;
-        hostCardButton.GetComponent<CardMenu>().enabled = false;
         joinPanel.SetActive(true);
-    }
 
-    public void StopServer()
-    {
-#if UNITY_STANDALONE
-        Debug.Log("Stopping server....." + manager.networkAddress);
-        manager.StopHost();
+#if UNITY_STANDALONE || UNITY_EDITOR
+        hostCardButton.interactable = false;
+        hostCardButton.GetComponent<CardMenu>().enabled = false;
 #endif
     }
 
@@ -84,35 +71,6 @@ public class MainMenuController : MonoBehaviour
         joinPanel.transform.Find("ErrorText")?.gameObject.SetActive(false);
         joinInProgressPanel.SetActive(false);
         manager.StopClient();
-    }
-
-    public void StartServer()
-    {
-#if UNITY_STANDALONE
-        if(NetworkServer.active || NetworkClient.active)
-        {
-            Debug.Log("Server already started... disconnect first to start server again");
-            return;
-        }
-
-        string port;
-        var inputField = hostPanel.transform.Find("InputField").GetComponent<InputField>();
-        if(inputField.text == null || inputField.text.Length == 0)
-        {
-            string placeholderText = inputField.transform.Find("Placeholder").GetComponent<Text>().text;
-            Debug.Log("placeholder port: " + placeholderText);
-            port = placeholderText;
-        }
-        else
-        {
-            Debug.Log("port inputted: " + inputField.text);
-            port = inputField.text;
-        }
-
-        ushort.TryParse(port, out tcpTransport.port);
-
-        manager.StartHost();
-#endif
     }
 
     // Attempt to Join Server
@@ -148,7 +106,7 @@ public class MainMenuController : MonoBehaviour
         }
 
         manager.networkAddress = ipAddress;
-        ushort.TryParse(port, out tcpTransport.port);
+        SetClientPort(port);
 
         manager.StartClient();
 
@@ -171,5 +129,82 @@ public class MainMenuController : MonoBehaviour
                 joinInProgressPanel.SetActive(false);
             }
         }
+    }
+
+// Standalone Builds are only allowed to create games to host
+#if UNITY_STANDALONE || UNITY_EDITOR
+    public void HostButton()
+    {
+        //menuPanel.SetActive(false);
+        joinCardButton.interactable = false;
+        hostCardButton.interactable = false;
+        joinCardButton.GetComponent<CardMenu>().enabled = false;
+        hostCardButton.GetComponent<CardMenu>().enabled = false;
+        hostPanel.SetActive(true);
+    }
+
+    public void StopServer()
+    {
+        Debug.Log("Stopping server....." + manager.networkAddress);
+        manager.StopHost();
+    }
+
+    public void StartServer()
+    {
+        if (NetworkServer.active || NetworkClient.active)
+        {
+            Debug.Log("Server already started... disconnect first to start server again");
+            return;
+        }
+
+        // TODO: remove this input field since multiplex transport is being used
+        string port;
+        var inputField = hostPanel.transform.Find("InputField").GetComponent<InputField>();
+        if (inputField.text == null || inputField.text.Length == 0)
+        {
+            string placeholderText = inputField.transform.Find("Placeholder").GetComponent<Text>().text;
+            Debug.Log("placeholder port: " + placeholderText);
+            port = placeholderText;
+        }
+        else
+        {
+            Debug.Log("port inputted: " + inputField.text);
+            port = inputField.text;
+        }
+
+        // Read from server configs
+        var pm = manager as ProjectAceNetworkManager;
+        if(pm != null)
+        {
+            pm.InitServerPorts();
+        }
+
+        manager.StartHost();
+    }
+#endif
+
+#if !UNITY_STANDALONE && !UNITY_EDITOR
+    private void DisableHostCardButton()
+    {
+        if(hostCardButton != null)
+        {
+            hostCardButton.GetComponent<CardMenu>().enabled = false;
+            hostCardButton.GetComponent<Button>().enabled = false;
+            hostCardButton.transform.Find("Text")?.gameObject.SetActive(false);
+        }
+    }
+#endif
+
+    private void SetClientPort(string port)
+    {
+#if UNITY_STANDALONE
+        var tcpTransport = manager?.GetComponent<TelepathyTransport>();
+        ushort.TryParse(port, out tcpTransport.port);
+#endif
+
+#if UNITY_WEBGL
+        var websocketTransport = manager?.GetComponent<WebsocketTransport>();
+        int.TryParse(port, out websocketTransport.port);
+#endif
     }
 }
