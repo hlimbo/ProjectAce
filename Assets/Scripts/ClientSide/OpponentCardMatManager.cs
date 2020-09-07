@@ -110,7 +110,6 @@ public class OpponentCardMatManager : MonoBehaviour
             if (mat != null)
             {
                 mat.SetActive(true);
-                Debug.Log("unowned panel connectionId: " + unownedPanel.ConnectionId);
                 cardMatTable[unownedPanel.ConnectionId] = mat;
                 var opponentCardMat = mat.GetComponent<OpponentCardMat>();
                 opponentCardMat.SetFaceDownCardPrefab(verticalFaceDownCardPrefab);

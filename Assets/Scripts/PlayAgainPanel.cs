@@ -61,7 +61,6 @@ public class PlayAgainPanel : MonoBehaviour
 
     private void Disconnect()
     {
-        // make this a shared interface function
         manager.Disconnect();
     }
 

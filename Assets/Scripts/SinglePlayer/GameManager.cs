@@ -8,8 +8,6 @@ using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-
-
 public class GameManager : MonoBehaviour
 {
     public enum GameState

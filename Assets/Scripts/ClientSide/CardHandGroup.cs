@@ -124,7 +124,6 @@ public class CardHandGroup : UIBehaviour, ILayoutGroup
             Transform child = transform.GetChild(i);
             RectTransform rectTransform = child.GetComponent<RectTransform>();
             rectTransform.anchoredPosition = new Vector2((rectTransform.rect.width / groupFactor) * i, rectTransform.anchoredPosition.y);
-            Debug.Log("CardHandGroup AnchoredPosition: " + rectTransform.anchoredPosition);
         }
 
         childCount = transform.childCount;

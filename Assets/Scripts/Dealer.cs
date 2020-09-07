@@ -104,8 +104,6 @@ public class Dealer : MonoBehaviour
             {
                 faceUpCard.sprite = Resources.Load<Sprite>("CardAssets/" + card);
             }
-            Debug.Log("Card to add: " + card);
-            Debug.Log("Card added to face up pile? " + isAdded);
 
             return canCardBeAdded && isAdded;
         }

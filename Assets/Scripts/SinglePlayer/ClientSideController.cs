@@ -276,7 +276,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             .Where(cardSelector => cardSelector.IsRaised)
             .Select(cardSelector => cardSelector.card).ToArray();
 
-        SendCardsToDealer(selectedCards);
+        Manager.EvaluateCardsToCombo(selectedCards);
     }
 
     private void OnEndTurnButtonSelected()
@@ -434,14 +434,8 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         }
     }
 
-    // IPlayerController interface functions //
-    public void SendCardToDealer(Card card)
+    void IPlayerController.SendCardToDealer(Card card)
     {
         Manager.TryAddCardToFaceUpPile(card);
-    }
-
-    public void SendCardsToDealer(Card[] cards)
-    {
-        Manager.EvaluateCardsToCombo(cards);
     }
 }

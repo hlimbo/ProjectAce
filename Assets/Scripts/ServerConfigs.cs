@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections;
 using UnityEngine;
-using UnityEngine.Networking;
 
-[System.Serializable]
+[Serializable]
 public class ServerConfigs
 {
     public ushort tcpPort;

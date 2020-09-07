@@ -488,7 +488,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetEnableControls(NetworkConnection clientConnection)
     {
-        Debug.Log("TargetEnableControls called");
         canEnableComboButton = true;
         endTurnButton.SetActive(true);
 
@@ -503,9 +502,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetDisableControls(NetworkConnection clientConnection)
     {
-        Debug.Log("Card count: " + myCards.Count);
-        Debug.Log("Disabling controls with card count: " + hand.Count);
-
         canEnableComboButton = false;
         comboButton.SetActive(false);
         endTurnButton.SetActive(false);
@@ -532,7 +528,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
                 hand.Where(cardSelector => cardSelector.IsRaised)
                     .Select(cardSelector => cardSelector.card).ToArray();
 
-            SendCardsToDealer(selectedCards);
+            CmdSelectedCardsToCombo(connectionId, selectedCards);
         }
     }
 
@@ -697,14 +693,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         MoveCardsDown();
     }
 
-    // IPlayerController interface functions //
-    public void SendCardToDealer(Card card)
+    void IPlayerController.SendCardToDealer(Card card)
     {
         CmdSendCardToDealer(card);
-    }
-
-    public void SendCardsToDealer(Card[] cards)
-    {
-        CmdSelectedCardsToCombo(connectionId, cards);
     }
 }
