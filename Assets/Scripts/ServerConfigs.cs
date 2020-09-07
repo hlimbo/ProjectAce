@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
+using UnityEngine;
+using UnityEngine.Networking;
 
 [System.Serializable]
 public class ServerConfigs
@@ -10,9 +13,8 @@ public class ServerConfigs
 
     public static ServerConfigs GenerateConfigs()
     {
-        string serverConfigsPath = $"{Application.dataPath}/StreamingAssets/serverConfigs.json";
+        string serverConfigsPath = $"{Application.streamingAssetsPath}/serverConfigs.json";
         string jsonString = System.IO.File.ReadAllText(serverConfigsPath);
-        Debug.Log(jsonString);
         return JsonUtility.FromJson<ServerConfigs>(jsonString);
     }
 }

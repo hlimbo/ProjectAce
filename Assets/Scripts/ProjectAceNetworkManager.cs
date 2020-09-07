@@ -236,8 +236,10 @@ public class ProjectAceNetworkManager : NetworkManager
         var newCard = dealer.GiveCard2();
         if (newCard != null && networkPlayerControllers.ContainsKey(connectionId))
         {
-            networkPlayerControllers[connectionId].myCards.Add((Card)newCard);
-            networkPlayerControllers[connectionId].TargetOnClientPlayDrawCardSound(networkPlayerControllers[connectionId].connectionToClient);
+            var npc = networkPlayerControllers[connectionId];
+            npc.myCards.Add((Card)newCard);
+            npc.TargetOnClientPlayDrawCardSound(npc.connectionToClient);
+            npc.TargetDidAddNewCard(npc.connectionToClient, NetworkServer.connections.Count);
             OnServerUpdateDrawPileCount();
         }
     }
@@ -479,7 +481,6 @@ public class ProjectAceNetworkManager : NetworkManager
             var npc = kvp.Value;
             var cards = DealerGiveCards();
 
-            npc.TargetOnClientPlayDealCardSounds(npc.connectionToClient);
             foreach (var card in cards)
             {
                 npc.myCards.Add(card);
@@ -489,6 +490,7 @@ public class ProjectAceNetworkManager : NetworkManager
             // A message will need to be sent to the client indicating this is a special case
             // for when a player receives their initial hand
             npc.TargetPlayerReceivesInitialHand(npc.connectionToClient);
+            npc.TargetOnClientPlayDealCardSounds(npc.connectionToClient, cards.Length);
 
             Debug.LogFormat("[Server]: Player {0} cards count: {1}: ", clientConnectionId, npc.myCards.Count);
 

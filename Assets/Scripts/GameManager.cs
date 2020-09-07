@@ -1,8 +1,14 @@
-﻿using UnityEngine;
-using ProjectAce;
-using UnityEngine.SceneManagement;
+﻿using ProjectAce;
+using System;
 using System.Linq;
+using System.Collections;
+
+using UnityEngine;
+using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+
+
 
 public class GameManager : MonoBehaviour
 {
@@ -42,8 +48,10 @@ public class GameManager : MonoBehaviour
     {
         SceneManager.sceneLoaded += SceneManager_sceneLoaded;
 
+#if UNITY_STANDALONE
         serverConfigs = ServerConfigs.GenerateConfigs();
-
+#endif
+        
         Init();
 
         // Only allow 1 instance of this game object to live
@@ -83,7 +91,18 @@ public class GameManager : MonoBehaviour
         playAgainPanel.gameObject.SetActive(false);
 
         playAgainButton.onClick.AddListener(OnGameReset);
+
+
+#if UNITY_WEBGL
+        StartCoroutine(FetchJsonConfigs((configs) =>
+        {
+            Debug.Log("Data successfully loaded");
+            serverConfigs = configs;
+            StartGame();
+        }));
+#else
         StartGame();
+#endif
     }
 
     private void OnGameReset()
@@ -140,6 +159,7 @@ public class GameManager : MonoBehaviour
             }
 
             player.RemoveCards(cards, animIndices);
+            playerPanel.SetCardsLeft(player.myCards.Count);
 
             CheckGameStatus();
         }
@@ -184,7 +204,7 @@ public class GameManager : MonoBehaviour
     private void AssignRandomAvatar()
     {
         var avatarFileNames = Utils.avatarAssets.Keys.ToArray();
-        int randomIndex = Random.Range(0, avatarFileNames.Length);
+        int randomIndex = UnityEngine.Random.Range(0, avatarFileNames.Length);
         playerPanel.avatarName = avatarFileNames[randomIndex];
         playerPanel.SetAvatarImage(Utils.avatarAssets[playerPanel.avatarName]);
     }
@@ -204,8 +224,8 @@ public class GameManager : MonoBehaviour
     public void ResetTurn()
     {
         playerPanel.StopCountdown();
-        player.DisableControls();
         player.CheckIfPlayerDrawsACard();
+        player.DisableControls();
         player.MoveRaisedCardsDown(() =>
         {
             // Re-enable controls once all cards are put back in the player's hand
@@ -241,5 +261,26 @@ public class GameManager : MonoBehaviour
     {
         player.EnableControls();
         playerPanel.StartCountdown();
+    }
+
+    private IEnumerator FetchJsonConfigs(Action<ServerConfigs> onDataReceived)
+    {
+        string serverConfigsPath = $"{Application.streamingAssetsPath}/serverConfigs.json";
+        using (var request = UnityWebRequest.Get(serverConfigsPath))
+        {
+            yield return request.SendWebRequest();
+
+
+            if (request.isNetworkError)
+            {
+                Debug.LogErrorFormat("Error: {0}", request.error);
+            }
+            else
+            {
+                Debug.Log(request.downloadHandler.text);
+                var configs = JsonUtility.FromJson<ServerConfigs>(request.downloadHandler.text);
+                onDataReceived(configs);
+            }
+        }
     }
 }

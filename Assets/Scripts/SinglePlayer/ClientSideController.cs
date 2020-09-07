@@ -176,6 +176,11 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             pendingAnimIndices.Enqueue(animIndices[i]);
         }
 
+        foreach(var card in cards)
+        {
+            myCards.Remove(card);            
+        }
+
         var cardControllersToRemove = hand.Where(c => cards.Contains(c.card)).ToList();
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardControllersToRemove)

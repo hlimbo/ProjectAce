@@ -200,6 +200,15 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
                 hand.Add(newCardController);
             }
 
+
+            // edge case: when there is only 1 player connected to the server and is actively playing
+            // do not disable the card.. only disable card when multiple players are connected to the game session
+            if (isNewCardAdded)
+            {
+                isNewCardAdded = false;
+                newCardController.DisableInteraction();
+            }
+
             // Draw Card Animation
             GameObject placeholder = new GameObject("placeholder");
             var r = placeholder.AddComponent<RectTransform>();
@@ -214,7 +223,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
             // set to empty and fill in after animation is done
             myNewCard.GetComponent<Image>().sprite = null;
-            myNewCard.GetComponent<CardController>().DisableInteraction();
             var myColor = myNewCard.GetComponent<Image>().color;
             myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
             myNewCard.transform.SetParent(cardHandGroup);
@@ -495,6 +503,9 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetDisableControls(NetworkConnection clientConnection)
     {
+        Debug.Log("Card count: " + myCards.Count);
+        Debug.Log("Disabling controls with card count: " + hand.Count);
+
         canEnableComboButton = false;
         comboButton.SetActive(false);
         endTurnButton.SetActive(false);
@@ -652,14 +663,14 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     }
 
     [TargetRpc]
-    public void TargetOnClientPlayDealCardSounds(NetworkConnection clientConnection)
+    public void TargetOnClientPlayDealCardSounds(NetworkConnection clientConnection, int cardsCount)
     {
-        StartCoroutine(DealCardSounds());
+        StartCoroutine(DealCardSounds(cardsCount));
     }
 
-    private IEnumerator DealCardSounds()
+    private IEnumerator DealCardSounds(int cardsCount)
     {
-        for (int i = 0; i < Manager.StartingCardCountPerPlayer; ++i)
+        for (int i = 0; i < cardsCount; ++i)
         {
             audioManager.PlayClip("drawCard");
             yield return new WaitForSeconds(audioManager.GetCurrentClipDuration());
@@ -670,6 +681,14 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetOnClientPlayDrawCardSound(NetworkConnection clientConnection)
     {
         audioManager.PlayClip("drawCard");
+    }
+
+    private bool isNewCardAdded = false;
+    [TargetRpc]
+    public void TargetDidAddNewCard(NetworkConnection clientConnection, int activePlayerCount)
+    {
+        Debug.Log("TargetDidAddNewCard Active Player Count: " + activePlayerCount);
+        isNewCardAdded = activePlayerCount > 1;
     }
 
     [TargetRpc]
