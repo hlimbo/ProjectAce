@@ -2,7 +2,7 @@
 
 namespace ProjectAce
 {
-    public static class GameRules2
+    public static class GameRules
     {
         public static bool ValidateCard(Card? topCard, Card currentCard)
         {

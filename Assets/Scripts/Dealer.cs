@@ -2,10 +2,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Mirror;
 
 // Available Server-Side only for Online Play.
-public class Dealer : NetworkBehaviour
+public class Dealer : MonoBehaviour
 {
     public static event Action<Dealer> OnDrawPileCountChanged = delegate { };
 
@@ -95,7 +94,7 @@ public class Dealer : NetworkBehaviour
 
     public bool AddCardToFaceUpPile(Card card)
     {
-        bool canCardBeAdded = GameRules2.ValidateCard(faceUpPile.TopCard, card);
+        bool canCardBeAdded = GameRules.ValidateCard(faceUpPile.TopCard, card);
         // Need to determine when face up pile needs to transfer all its cards to the draw pile
         // ^ when draw pile is empty move all cards from face up pile to draw pile and shuffle
         if (canCardBeAdded)
@@ -128,8 +127,7 @@ public class Dealer : NetworkBehaviour
             return false;
         }
 
-        // Game Rules can probably be converted into a static class
-        bool canCardsBeAdded = GameRules2.DoCardsAddUpToTopCardValue((Card)faceUpPile.TopCard, cards);
+        bool canCardsBeAdded = GameRules.DoCardsAddUpToTopCardValue((Card)faceUpPile.TopCard, cards);
         if(canCardsBeAdded)
         {
             bool areCardsAdded = faceUpPile.Add(cards);

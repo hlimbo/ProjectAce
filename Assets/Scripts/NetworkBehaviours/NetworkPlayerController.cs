@@ -7,14 +7,14 @@ using ProjectAce;
 using Mirror;
 using DG.Tweening;
 
-public class NetworkPlayerController : NetworkBehaviour
+public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 {
     // Client side objects/prefabs
     private GameObject cardPrefab;
     private GameObject opponentCardPrefab;
     private Transform parent;
 
-    private GameObject cardHandGroup;
+    private Transform cardHandGroup;
     private GameObject comboButton;
     private GameObject endTurnButton;
 
@@ -74,10 +74,8 @@ public class NetworkPlayerController : NetworkBehaviour
     private void Awake()
     {
         opponentCardMatManager = FindObjectOfType<OpponentCardMatManager>();
-        cardHandGroup = GameObject.Find("CardHandGroup");
+        cardHandGroup = GameObject.Find("CardHandGroup")?.transform;
         drawPileGraphic = GameObject.Find("DrawPileGraphic")?.transform;
-        // can be replaced with cardMat and grab cardhandgroup via cardMat instead
-        parent = cardHandGroup?.transform;
 
         // Since this is a NetworkBehaviour it will load these resources per instance which is bad
         // I only want to load this resource once!!!!
@@ -106,11 +104,6 @@ public class NetworkPlayerController : NetworkBehaviour
             Debug.Log("My connectionId: " + connectionId);
         }
 
-        if (isClientOnly)
-        {
-            Manager.networkPlayerControllers[connectionId] = this;
-        }
-
         if (!hasAuthority)
         {
             myCards.Callback += OnClientOpponentCardsUpdated;
@@ -136,7 +129,6 @@ public class NetworkPlayerController : NetworkBehaviour
 
     public void MoveCardsDown()
     {
-        Debug.Log("MOVING CARDS DOWN!!!!!!! ON NPC EVENT END TURN");
         foreach (var card in hand)
         {
             if (card.IsRaised)
@@ -195,6 +187,45 @@ public class NetworkPlayerController : NetworkBehaviour
         }
     }
 
+    private void OnClientMyCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
+    {
+        CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
+        if (op == SyncListCards.Operation.OP_ADD)
+        {
+            Debug.Log("Addding card: " + newCard);
+            GameObject myNewCard = Instantiate(cardPrefab);
+            var newCardController = myNewCard.GetComponent<CardController>();
+            if (newCardController != null)
+            {
+                hand.Add(newCardController);
+            }
+
+            // Draw Card Animation
+            GameObject placeholder = new GameObject("placeholder");
+            var r = placeholder.AddComponent<RectTransform>();
+            var l = placeholder.AddComponent<LayoutElement>();
+            var i = placeholder.AddComponent<Image>();
+            l.preferredWidth = myNewCard.GetComponent<LayoutElement>().preferredWidth;
+            l.preferredHeight = myNewCard.GetComponent<LayoutElement>().preferredHeight;
+            r.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, l.preferredWidth);
+            r.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, l.preferredHeight);
+            i.sprite = Utils.cardAssets[newCard.ToString()];
+            i.raycastTarget = false;
+
+            // set to empty and fill in after animation is done
+            myNewCard.GetComponent<Image>().sprite = null;
+            myNewCard.GetComponent<CardController>().DisableInteraction();
+            var myColor = myNewCard.GetComponent<Image>().color;
+            myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
+            myNewCard.transform.SetParent(cardHandGroup);
+            myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
+
+            cardsToDraw.Enqueue(myNewCard);
+            cardValuesToDraw.Enqueue(newCard);
+            placeholders.Enqueue(placeholder);
+        }
+    }
+
     private void OnClientOpponentCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
         // cardMat gameObject reference won't be available until game completes starting up
@@ -227,10 +258,9 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         // Recalculate all child elements within the parent container and wait until end of frame 
         // for layout to rebuild all child element positions
-        LayoutRebuilder.MarkLayoutForRebuild(parent.GetComponent<RectTransform>());
+        LayoutRebuilder.MarkLayoutForRebuild(cardHandGroup.GetComponent<RectTransform>());
         yield return new WaitForEndOfFrame();
 
-        int totalCardCount = cardsToDraw.Count;
         while (cardsToDraw.Count > 0)
         {
             var placeholder = placeholders.Dequeue();
@@ -245,7 +275,7 @@ public class NetworkPlayerController : NetworkBehaviour
             cardRt.anchorMin = new Vector2(0.5f, 0.5f);
             cardRt.anchorMax = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = new Vector2(0f, 0f);
-            placeholder.transform.SetParent(parent);
+            placeholder.transform.SetParent(cardHandGroup);
 
             placeholder.transform.DOLocalMove(myNewCard.transform.localPosition, 1.25f, true).OnComplete(() =>
             {
@@ -266,45 +296,6 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             CmdCheckForTurn();
             isReceivingInitialHand = false;
-        }
-    }
-
-    // Goal: separate client-side only related variables from host/network dependent variables
-    private void OnClientMyCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
-    {
-        CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
-        if (op == SyncListCards.Operation.OP_ADD)
-        {
-            Debug.Log("Addding card: " + newCard);
-            GameObject myNewCard = Instantiate(cardPrefab);
-            var newCardController = myNewCard.GetComponent<CardController>();
-            if(newCardController != null)
-            {
-                hand.Add(newCardController);
-            }
-
-            // Draw Card Animation
-            GameObject placeholder = new GameObject("placeholder");
-            var r = placeholder.AddComponent<RectTransform>();
-            var l = placeholder.AddComponent<LayoutElement>();
-            var i = placeholder.AddComponent<Image>();
-            l.preferredWidth = myNewCard.GetComponent<LayoutElement>().preferredWidth;
-            l.preferredHeight = myNewCard.GetComponent<LayoutElement>().preferredHeight;
-            r.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, l.preferredWidth);
-            r.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, l.preferredHeight);
-            i.sprite = Utils.cardAssets[newCard.ToString()];
-            i.raycastTarget = false;
-
-            // set to empty and fill in after animation is done
-            myNewCard.GetComponent<Image>().sprite = null;
-            var myColor = myNewCard.GetComponent<Image>().color;
-            myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
-            myNewCard.transform.SetParent(parent);
-            myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
-
-            cardsToDraw.Enqueue(myNewCard);
-            cardValuesToDraw.Enqueue(newCard);
-            placeholders.Enqueue(placeholder);
         }
     }
 
@@ -331,18 +322,11 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             myCards.Callback -= OnClientMyCardsUpdated;
         }
-
-        if (isClientOnly)
-        {
-            if(Manager.networkPlayerControllers.ContainsKey(connectionId))
-            {
-                Manager.networkPlayerControllers.Remove(connectionId);
-            }
-        }
     }
 
     private float[] rotations = new float[] { 0f, 15f, 30f, -15f, -30f };
 
+    // call CSController.RemoveCard
     [TargetRpc]
     public void TargetRemoveMyCardFromHand(NetworkConnection clientConnection, Card card, int animIndex)
     {
@@ -359,7 +343,6 @@ public class NetworkPlayerController : NetworkBehaviour
             return;
         }
 
-        cardToRemove.isPlacedOnTable = true;
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
 
         audioManager.PlayClip("cardPlacedOnTable");
@@ -406,7 +389,7 @@ public class NetworkPlayerController : NetworkBehaviour
 
             audioManager.PlayClip("cardPlacedOnTable");
 
-            yield return new WaitForSeconds(0.75f);
+            yield return new WaitForSeconds(audioManager.GetCurrentClipDuration());
         }
 
         isRoutineRunning = false;
@@ -447,6 +430,7 @@ public class NetworkPlayerController : NetworkBehaviour
             Destroy(g);
         }
 
+        // TODO pass in the Queues in here instead
         RunCardsAnimsRoutine();
     }
 
@@ -470,7 +454,7 @@ public class NetworkPlayerController : NetworkBehaviour
         {
             Manager.PlayAgainPanel.gameObject.SetActive(true);
             Manager.PlayAgainPanel.SetWinnerText(winnerName);
-            Manager.PlayAgainPanel.SetWinningAvatar(connectionId);
+            Manager.PlayAgainPanel.SetWinningAvatarMulti(connectionId);
         }
     }
 
@@ -537,7 +521,7 @@ public class NetworkPlayerController : NetworkBehaviour
                 hand.Where(cardSelector => cardSelector.IsRaised)
                     .Select(cardSelector => cardSelector.card).ToArray();
 
-            CmdSelectedCardsToCombo(connectionId, selectedCards);
+            SendCardsToDealer(selectedCards);
         }
     }
 
@@ -586,7 +570,7 @@ public class NetworkPlayerController : NetworkBehaviour
     [Command]
     private void CmdOnPlayAgainPressed()
     {
-        manager.PlayGameAgain();
+        Manager.PlayGameAgain();
     }
 
     [TargetRpc]
@@ -608,7 +592,7 @@ public class NetworkPlayerController : NetworkBehaviour
     }
 
     [Command]
-    public void CmdSendCardToDealer(Card card)
+    private void CmdSendCardToDealer(Card card)
     {
         Manager.TryAddCardToFaceUpPile(connectionId, card);
     }
@@ -686,5 +670,22 @@ public class NetworkPlayerController : NetworkBehaviour
     public void TargetOnClientPlayDrawCardSound(NetworkConnection clientConnection)
     {
         audioManager.PlayClip("drawCard");
+    }
+
+    [TargetRpc]
+    public void TargetMoveCardsDown(NetworkConnection clientConnection)
+    {
+        MoveCardsDown();
+    }
+
+    // IPlayerController interface functions //
+    public void SendCardToDealer(Card card)
+    {
+        CmdSendCardToDealer(card);
+    }
+
+    public void SendCardsToDealer(Card[] cards)
+    {
+        CmdSelectedCardsToCombo(connectionId, cards);
     }
 }

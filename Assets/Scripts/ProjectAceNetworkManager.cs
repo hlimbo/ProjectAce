@@ -29,6 +29,9 @@ public class ProjectAceNetworkManager : NetworkManager
     // measured in seconds
     public int InitialTimeLeftPerPlayer => serverConfigs.initialTimeLeftPerPlayer;
 
+    public string TcpPort => serverConfigs.tcpPort.ToString();
+    public string WebsocketPort => serverConfigs.websocketPort.ToString();
+
     [Header("GameObject Prefabs")]
     [SerializeField]
     private GameObject readyPrefab;
@@ -37,17 +40,14 @@ public class ProjectAceNetworkManager : NetworkManager
     [SerializeField]
     private GameObject playerPanelPrefab;
 
-    // this needs to be set when server is in SampleScene
+    // this needs to be set when server is on the online scene
     // On client side
     private Text drawPileCountText;
 
-    // TODO: to support headless mode, these should only be maintained by the server with the exception of networkPlayerControllers
-    // Maintained in both client and server
+    // Maintained server-side only
     public readonly Dictionary<int, NetworkPlayerController> networkPlayerControllers = new Dictionary<int, NetworkPlayerController>();
     public readonly Dictionary<int, ReadyPanel> readyPanels = new Dictionary<int, ReadyPanel>();
     public readonly Dictionary<int, PlayerPanel> playerPanels = new Dictionary<int, PlayerPanel>();
-
-    // Maintained server-side only
     public readonly Dictionary<int, NameTag> playerNames = new Dictionary<int, NameTag>();
 
     public readonly Dictionary<int, bool> playerNumbers = new Dictionary<int,bool>()
@@ -169,48 +169,44 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public void TryAddCardToFaceUpPile(int clientConnectionId, Card card)
     {
+        if(!networkPlayerControllers.ContainsKey(clientConnectionId) || 
+            !playerPanels.ContainsKey(clientConnectionId))
+        {
+            Debug.LogErrorFormat("[Server]: TryAddCardToFaceUpPile clientConnectionId {0} does not exist on server.", clientConnectionId);
+            return;
+        }
+
         NetworkConnectionToClient conn = NetworkServer.connections[clientConnectionId];
+        var npc = networkPlayerControllers[clientConnectionId];
+        var playerPanel = playerPanels[clientConnectionId];
 
         // Don't validate card if it isn't the player's turn
-        if(playerPanels.ContainsKey(clientConnectionId))
+        if (!playerPanel.IsMyTurn)
         {
-            var playerPanel = playerPanels[clientConnectionId];
-            if(!playerPanel.IsMyTurn)
-            {
-                networkPlayerControllers[clientConnectionId].TargetCardPlacementFailed(conn, card);
-                return;
-            }
+            npc.TargetCardPlacementFailed(conn, card);
+            return;
         }
 
 
-        if(GameRules2.ValidateCard(dealer.TopCard, card))
+        if(GameRules.ValidateCard(dealer.TopCard, card))
         {
             bool canAddCard = dealer.AddCardToFaceUpPile2(card);
             if (canAddCard)
             {
-                if (networkPlayerControllers.ContainsKey(clientConnectionId))
-                {
-                    networkPlayerControllers[clientConnectionId].hasPlayedCardOrComboThisTurn = true;
-                }
-
                 Debug.Log("[SERVER]: CARD CAN BE PLAYED THIS TURN!!!!!! " + card);
-                var npc = networkPlayerControllers[clientConnectionId];
+                npc.hasPlayedCardOrComboThisTurn = true;
                 npc.myCards.Remove(card);
                 npc.RpcRemoveOpponentCardFromHand(card, animIndex);
                 npc.TargetRemoveMyCardFromHand(conn, card, animIndex);
                 animIndex = (animIndex + 1) % ANIM_VARIATION_COUNT;
 
                 CheckGameStatus(clientConnectionId);
-            }
-            else
-            {
-                networkPlayerControllers[clientConnectionId].TargetCardPlacementFailed(conn, card);
+                return;
             }
         }
-        else
-        {
-            networkPlayerControllers[clientConnectionId].TargetCardPlacementFailed(conn, card);
-        }
+
+        // Put card down on failed validation
+        npc.TargetCardPlacementFailed(conn, card);
     }
 
     public void CheckGameStatus(int clientConnectionId)
@@ -281,7 +277,6 @@ public class ProjectAceNetworkManager : NetworkManager
         }
 
         networkPlayerControllers[conn.connectionId] = player.GetComponent<NetworkPlayerController>();
-        playerPanels[conn.connectionId].SetNetworkPlayerControllerNetId(networkPlayerControllers[conn.connectionId].netId);
     }
 
 
@@ -387,7 +382,7 @@ public class ProjectAceNetworkManager : NetworkManager
                         {
                             NetworkConnection nextClientConnection = NetworkServer.connections[nextClientTurnConnectionId];
                             networkPlayerControllers[nextClientTurnConnectionId].TargetEnableControls(nextClientConnection);
-                            playerPanels[nextClientTurnConnectionId].StartCountdown(nextClientTurnConnectionId);
+                            playerPanels[nextClientTurnConnectionId].StartCountdown();
                         }
                     }
                 }
@@ -490,7 +485,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 npc.myCards.Add(card);
             }
 
-            // Since MIrror bundles adding multiple objects in a SyncList together,
+            // Since Mirror bundles adding multiple objects in a SyncList together,
             // A message will need to be sent to the client indicating this is a special case
             // for when a player receives their initial hand
             npc.TargetPlayerReceivesInitialHand(npc.connectionToClient);
@@ -567,7 +562,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if(networkPlayerControllers.ContainsKey(nextTurnClientConnectionId))
         {
             networkPlayerControllers[nextTurnClientConnectionId].TargetEnableControls(NetworkServer.connections[nextTurnClientConnectionId]);
-            playerPanels[nextTurnClientConnectionId].StartCountdown(nextTurnClientConnectionId);
+            playerPanels[nextTurnClientConnectionId].StartCountdown();
         }
     }
 
@@ -629,7 +624,7 @@ public class ProjectAceNetworkManager : NetworkManager
         OnServerUpdateDrawPileCount();
     }
 
-    public void AssignRandomAvatars()
+    private void AssignRandomAvatars()
     {
         var avatarFileNames = Utils.avatarAssets.Keys.ToArray();
         var connIds = playerPanels.Keys.ToArray();
@@ -663,7 +658,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if (turnOrder[currentTurnIndex] == connectionId)
         {
             networkPlayerControllers[connectionId].TargetEnableControls(playerConnection);
-            playerPanels[connectionId].StartCountdown(connectionId);
+            playerPanels[connectionId].StartCountdown();
         }
         else
         {
@@ -724,7 +719,7 @@ public class ProjectAceNetworkManager : NetworkManager
         NetworkPlayerController networkPlayerController;
         networkPlayerControllers.TryGetValue(clientConnectionId, out networkPlayerController);
 
-        bool isComboValid = dealer.TopCard != null && GameRules2.DoCardsAddUpToTopCardValue((Card)dealer.TopCard, cards);
+        bool isComboValid = dealer.TopCard != null && GameRules.DoCardsAddUpToTopCardValue((Card)dealer.TopCard, cards);
         if(isComboValid)
         {
             if (networkPlayerController != null)
@@ -834,5 +829,14 @@ public class ProjectAceNetworkManager : NetworkManager
         var websocketTransport = GetComponent<WebsocketTransport>();
         tcpTransport.port = serverConfigs.tcpPort;
         websocketTransport.port = serverConfigs.websocketPort;
+    }
+
+    public void MoveCardsDown(int connectionId)
+    {
+        if(networkPlayerControllers.ContainsKey(connectionId))
+        {
+            var clientConnection = networkPlayerControllers[connectionId].connectionToClient;
+            networkPlayerControllers[connectionId].TargetMoveCardsDown(clientConnection);
+        }    
     }
 }

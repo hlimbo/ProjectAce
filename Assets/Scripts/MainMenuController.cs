@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using Mirror;
 using Mirror.Websocket;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -115,6 +116,11 @@ public class MainMenuController : MonoBehaviour
         isAttemptingToConnectToServer = true;
     }
 
+    public void StartSinglePlayer()
+    {
+        SceneManager.LoadScene("SinglePlayer");
+    }
+
     // Unfortunate Hack since Mirror has no way of intercepting a server connection that fails due to server being full
     private void Update()
     {
@@ -141,6 +147,15 @@ public class MainMenuController : MonoBehaviour
         joinCardButton.GetComponent<CardMenu>().enabled = false;
         hostCardButton.GetComponent<CardMenu>().enabled = false;
         hostPanel.SetActive(true);
+
+        // Read from server configs
+        var pm = manager as ProjectAceNetworkManager;
+        if (pm != null)
+        {
+            pm.InitServerPorts();
+            hostPanel.transform.Find("PortNumbers/TcpPort").GetComponent<Text>().text = pm.TcpPort;
+            hostPanel.transform.Find("PortNumbers/WebsocketPort").GetComponent<Text>().text = pm.WebsocketPort;
+        }
     }
 
     public void StopServer()
@@ -155,28 +170,6 @@ public class MainMenuController : MonoBehaviour
         {
             Debug.Log("Server already started... disconnect first to start server again");
             return;
-        }
-
-        // TODO: remove this input field since multiplex transport is being used
-        string port;
-        var inputField = hostPanel.transform.Find("InputField").GetComponent<InputField>();
-        if (inputField.text == null || inputField.text.Length == 0)
-        {
-            string placeholderText = inputField.transform.Find("Placeholder").GetComponent<Text>().text;
-            Debug.Log("placeholder port: " + placeholderText);
-            port = placeholderText;
-        }
-        else
-        {
-            Debug.Log("port inputted: " + inputField.text);
-            port = inputField.text;
-        }
-
-        // Read from server configs
-        var pm = manager as ProjectAceNetworkManager;
-        if(pm != null)
-        {
-            pm.InitServerPorts();
         }
 
         manager.StartHost();

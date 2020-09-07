@@ -12,7 +12,7 @@ public class FaceUpPile : MonoBehaviour, IDropHandler
             var cardController = eventData.pointerDrag.GetComponent<CardController>();
             if(cardController != null)
             {
-                cardController.SendCardToServer();
+                cardController.DropCardOnPile();
             }
         }
     }

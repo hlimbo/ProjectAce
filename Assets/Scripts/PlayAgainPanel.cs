@@ -16,6 +16,9 @@ public class PlayAgainPanel : MonoBehaviour
     private ProjectAceNetworkManager manager;
     private Image winningAvatar;
 
+    private GameObject optionsPanel;
+    private GameObject waitingOnHostPanel;
+
     private void Awake()
     {
         winnerText = transform.Find("WinnerText")?.GetComponent<Text>();
@@ -23,6 +26,9 @@ public class PlayAgainPanel : MonoBehaviour
         exitButton = transform.Find("OptionsPanel/ExitButton")?.GetComponent<Button>();
         cancelButton = transform.Find("WaitingOnHostPanel/CancelButton")?.GetComponent<Button>();
         winningAvatar = transform.Find("WinningAvatar/PlayerImage")?.GetComponent<Image>();
+
+        waitingOnHostPanel = transform.Find("WaitingOnHostPanel")?.gameObject;
+        optionsPanel = transform.Find("OptionsPanel")?.gameObject;
 
         exitButton?.onClick.AddListener(Disconnect);        
         manager = FindObjectOfType<ProjectAceNetworkManager>();
@@ -43,31 +49,20 @@ public class PlayAgainPanel : MonoBehaviour
 
     private void ClientOnlyPlayAgainClicked()
     {
-        manager.WaitingOnHostPanel?.SetActive(true);
-        manager.OptionsPanel?.SetActive(false);
+        waitingOnHostPanel?.SetActive(true);
+        optionsPanel?.SetActive(false);
     }
 
     private void ClientOnlyCancelClicked()
     {
-        manager.WaitingOnHostPanel?.SetActive(false);
-        manager.OptionsPanel?.SetActive(true);
+        waitingOnHostPanel?.SetActive(false);
+        optionsPanel?.SetActive(true);
     }
 
     private void Disconnect()
     {
+        // make this a shared interface function
         manager.Disconnect();
-    }
-
-    public void SetWinnerText(int clientConnectionId)
-    {
-        if(clientConnectionId == 0)
-        {
-            winnerText.text = "Leader Wins!";
-        }
-        else
-        {
-            winnerText.text = string.Format("Player {0} wins!", clientConnectionId);
-        }
     }
 
     public void SetWinnerText(string winnerName)
@@ -75,7 +70,7 @@ public class PlayAgainPanel : MonoBehaviour
         winnerText.text = string.Format("{0} Wins!", winnerName);
     }
 
-    public void SetWinningAvatar(int connectionId)
+    public void SetWinningAvatarMulti(int connectionId)
     {
         var winningPanel = FindObjectsOfType<PlayerPanel>()
             .Where(panel => panel.ConnectionId == connectionId).FirstOrDefault();
@@ -83,6 +78,14 @@ public class PlayAgainPanel : MonoBehaviour
         if(winningPanel != null && Utils.avatarAssets.ContainsKey(winningPanel.avatarName))
         {
             winningAvatar.sprite = Utils.avatarAssets[winningPanel.avatarName];
+        }
+    }
+
+    public void SetWinningAvatarSingle(SinglePlayerPanel playerPanel)
+    {
+        if (playerPanel != null && Utils.avatarAssets.ContainsKey(playerPanel.avatarName))
+        {
+            winningAvatar.sprite = Utils.avatarAssets[playerPanel.avatarName];
         }
     }
 }

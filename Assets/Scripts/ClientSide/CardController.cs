@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using System.Linq;
+using Mirror;
 
 public class CardController : MonoBehaviour
 {
@@ -12,7 +13,7 @@ public class CardController : MonoBehaviour
     private ClickHandler clickHandler;
     [SerializeField]
     private DragHandler dragHandler;
-    private NetworkPlayerController owner;
+    private IPlayerController owner;
 
     public Card card;
     public bool IsRaised => clickHandler != null && clickHandler.IsRaised;
@@ -56,27 +57,31 @@ public class CardController : MonoBehaviour
         }
     }
 
-    public void Initialize(NetworkPlayerController player, Card card)
+    public void Initialize(IPlayerController player, Card card)
     {
         owner = player;
         this.card = card;
         cardImage.sprite = Utils.cardAssets[card.ToString()];
     }
 
-    public void SendCardToServer()
+    public void DropCardOnPile()
     {
         clickHandler.enabled = false;
 
-        // check if it is still the player's turn here
-        var panel = FindObjectsOfType<PlayerPanel>().Where(p => p.ConnectionId == owner.ConnectionId).FirstOrDefault();
-        if(panel == null)
+        // Online Multiplayer enabled?
+        if(NetworkClient.active || NetworkClient.isLocalClient)
         {
-            return;
+            var panel = FindObjectsOfType<PlayerPanel>().Where(p => p.hasAuthority).FirstOrDefault();
+            // Only allow client to send to server when it is the current player's turn
+            if (panel != null && panel.IsMyTurn)
+            {
+                owner.SendCardToDealer(card);
+            }
         }
-
-        if(panel.IsMyTurn)
+        else
         {
-            owner.CmdSendCardToDealer(card);
+            // Single Player Mode
+            owner.SendCardToDealer(card);
         }
     }
 
@@ -145,6 +150,7 @@ public class CardController : MonoBehaviour
 
     public void MoveToTargetPosition(Transform parent, float targetRotation)
     {
+        isPlacedOnTable = true;
         rotationAngles.z = targetRotation;
         Quaternion rotation = Quaternion.Euler(rotationAngles);
 

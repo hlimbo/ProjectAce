@@ -166,14 +166,6 @@ public class CardHandGroup : UIBehaviour, ILayoutGroup
         }
     }
 
-    // This gets called whenever new child elements are added into this game-object.
-    //protected override void OnCanvasHierarchyChanged()
-    //{
-    //    base.OnCanvasHierarchyChanged();
-
-    //    Debug.Log("OnCanvasHierarchyChanged!");
-    //}
-
     private void SetChildPivot(TextAnchor anchor, ref RectTransform rectTransform)
     {
         // TODO: refactor AnchorPresetsUtils to use TextAnchor enum and have AnchorPresetsUtils set the pivot of a RectTransform

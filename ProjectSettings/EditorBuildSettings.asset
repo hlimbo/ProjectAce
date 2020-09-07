@@ -9,8 +9,11 @@ EditorBuildSettings:
     path: Assets/Scenes/MainMenu.unity
     guid: 00253a391c84cbb46a9ed10fd534664c
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
+    path: Assets/Scenes/OnlineGame.unity
     guid: 2cda990e2423bbf4892e6590ba056729
+  - enabled: 1
+    path: Assets/Scenes/SinglePlayer.unity
+    guid: 82b9e8c470011f146b43765277a16c96
   - enabled: 0
     path: Assets/Mirror/Examples/Basic/Scenes/Example.unity
     guid: b30904751905d3f4dacde62ac85ec7c2

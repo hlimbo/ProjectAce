@@ -8,11 +8,6 @@ using DG.Tweening;
 
 public class PlayerPanel : NetworkBehaviour
 {
-    public delegate void EndTurnDelegate();
-
-    [SyncEvent]
-    public event EndTurnDelegate EventEndTurn;
-
     [SyncVar]
     private int connectionId;
     public int ConnectionId => connectionId;
@@ -96,16 +91,6 @@ public class PlayerPanel : NetworkBehaviour
         playerLabel.text = newName;
     }
 
-    [SyncVar(hook = nameof(OnClientReceiveNetworkPlayerControllerNetId))]
-    public uint networkPlayerControllerNetId;
-    private NetworkPlayerController networkPlayerController;
-
-    private void OnClientReceiveNetworkPlayerControllerNetId(uint _, uint newId)
-    {
-        networkPlayerController = FindObjectsOfType<NetworkPlayerController>()
-            .Where(npc => npc.netId == newId).FirstOrDefault();
-    }
-
     private void Awake()
     {
         playerLabel = transform.Find("PlayerName")?.GetComponent<Text>();
@@ -116,8 +101,7 @@ public class PlayerPanel : NetworkBehaviour
         rectTransform = GetComponent<RectTransform>();
         uiCanvas = GameObject.Find("Canvas")?.transform;
 
-        pulseSequence = DOTween.Sequence();
-        pulseSequence
+        pulseSequence = DOTween.Sequence()
             .Append(counterFx.transform.DOScaleX(1.25f, 1f))
             .Join(counterFx.transform.DOScaleY(1.25f, 1f))
             .Join(counterFx.DOFade(0f, 1.5f))
@@ -152,12 +136,6 @@ public class PlayerPanel : NetworkBehaviour
         // Hack - hides the player panel from being visible from the lobby by rendering it behind the lobby game object
         transform.SetAsFirstSibling();
 
-        // TODO: to support headless mode, remove the need to have client-side copy references of player panels
-        if (isClientOnly)
-        {
-            Manager.playerPanels[connectionId] = this;
-        }
-
         if (!isMyTurn)
         {
             timeLeftCircle.gameObject.SetActive(false);
@@ -168,44 +146,17 @@ public class PlayerPanel : NetworkBehaviour
     public override void OnStartAuthority()
     {
         base.OnStartAuthority();
-
         anchorPreset = AnchorPresets.BOTTOM_LEFT;
         AnchorPresetsUtils.AssignAnchor(AnchorPresets.BOTTOM_LEFT, ref rectTransform);
-
-        if(networkPlayerController != null)
-        {
-            Debug.Log("Registering event delegate");
-            EventEndTurn += networkPlayerController.MoveCardsDown;
-        }
-    }
-
-    public override void OnStopClient()
-    {
-        base.OnStopClient();
-        if(isClientOnly)
-        {
-            if(Manager.playerPanels.ContainsKey(connectionId))
-            {
-                Manager.playerPanels.Remove(connectionId);
-            }
-        }
-
-        if (hasAuthority)
-        {
-            if (networkPlayerController != null)
-            {
-                EventEndTurn -= networkPlayerController.MoveCardsDown;
-            }
-        }
     }
 
     [Server]
-    public void StartCountdown(int connectionId)
+    public void StartCountdown()
     {
         StopAllCoroutines();
         RpcToggleTimerUI(true);
         RpcToggleHighlightPlayerLabel(true);
-        StartCoroutine(CountdownRoutine(connectionId));
+        StartCoroutine(CountdownRoutine(syncInterval));
     }
 
     [Server]
@@ -214,21 +165,21 @@ public class PlayerPanel : NetworkBehaviour
         isMyTurn = false;
         RpcToggleTimerUI(false);
         RpcToggleHighlightPlayerLabel(false);
-        EventEndTurn();
+        Manager.MoveCardsDown(connectionId);
 
-        // Single Player Mode only
+        // When only 1 client is actively connected to the server
         if (NetworkServer.connections.Count == 1)
         {
             StopAllCoroutines();
         }
         else
         {
-            StopCoroutine(CountdownRoutine(connectionId));
+            StopCoroutine(CountdownRoutine(syncInterval));
         }
     }
 
     // Server Side only
-    private IEnumerator CountdownRoutine(int connectionId)
+    private IEnumerator CountdownRoutine(float delta)
     {
         isMyTurn = true;
         timeLeft = initialTimeLeft;
@@ -242,8 +193,8 @@ public class PlayerPanel : NetworkBehaviour
             }
 
             // subtraction here accounts for delays that the client will receive the time to update the timer panel
-            yield return new WaitForSeconds(syncInterval - .01f);
-            timeLeft -= syncInterval;
+            yield return new WaitForSeconds(delta - .01f);
+            timeLeft -= delta;
         }
 
         timeLeft = 0f;
@@ -257,12 +208,6 @@ public class PlayerPanel : NetworkBehaviour
             Manager.GoToNextTurn();
         }
 
-    }
-
-    [Server]
-    public void SetNetworkPlayerControllerNetId(uint netId)
-    {
-        networkPlayerControllerNetId = netId;
     }
 
     [ClientRpc]

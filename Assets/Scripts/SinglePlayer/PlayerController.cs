@@ -90,7 +90,7 @@ public class PlayerController : MonoBehaviour
     {
         foreach(var card in hand)
         {
-            if(GameRules2.ValidateCard(dealer.TopCard, card))
+            if(GameRules.ValidateCard(dealer.TopCard, card))
             {
                 return true;
             }

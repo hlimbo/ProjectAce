@@ -93,7 +93,7 @@ MonoBehaviour:
   showDebugMessages: 0
   serverTickRate: 30
   offlineScene: Assets/Scenes/MainMenu.unity
-  onlineScene: Assets/Scenes/SampleScene.unity
+  onlineScene: 
   transport: {fileID: 1537589208192678810}
   networkAddress: localhost
   maxConnections: 4
@@ -108,8 +108,11 @@ MonoBehaviour:
   - {fileID: 7389259222150182251, guid: e5f677d262fb4294e90dafa3375f3838, type: 3}
   - {fileID: 562098784092836428, guid: 8083dd7e0505ac94a972a2b883dfd873, type: 3}
   - {fileID: 7015162978980405029, guid: 7caa4961ada06eb4f87fae095c743a06, type: 3}
-  startingCardCountPerPlayer: 8
-  initialTimeLeftPerPlayer: 15
+  serverConfigs:
+    tcpPort: 0
+    websocketPort: 0
+    startingCardCountPerPlayer: 0
+    initialTimeLeftPerPlayer: 0
   readyPrefab: {fileID: 7389259222150182251, guid: e5f677d262fb4294e90dafa3375f3838,
     type: 3}
   dealerPrefab: {fileID: 1942815910896162533, guid: a4134ff235bed0e478f23c32f70c66d6,
