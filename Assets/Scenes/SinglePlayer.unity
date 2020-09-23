@@ -2406,7 +2406,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: eea238d03da21fb49a846ce5e202b814, type: 3}
+  m_Sprite: {fileID: 21300000, guid: ab4b822647a787143adff49a053320e1, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3208,10 +3208,10 @@ RectTransform:
   m_Father: {fileID: 2124947634}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.8398653}
-  m_AnchorMax: {x: 1, y: 0.8398653}
-  m_AnchoredPosition: {x: 0, y: -8}
-  m_SizeDelta: {x: 0, y: 93.399994}
+  m_AnchorMin: {x: 0, y: 0.63243264}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0.1000061}
+  m_SizeDelta: {x: 0, y: 0.3999939}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1018984802
 MonoBehaviour:
@@ -7507,6 +7507,11 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3103700133282398543, guid: 40376001c7f4b7e42ae7413d1e2f7b8c,
+        type: 3}
+      propertyPath: m_Horizontal
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3103700133857385367, guid: 40376001c7f4b7e42ae7413d1e2f7b8c,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -8484,6 +8489,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 41338e7dd0ecafb4eb5f0bfb883fb1d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerName: Bobby
   avatarName: 
 --- !u!222 &7015162978987954659
 CanvasRenderer:

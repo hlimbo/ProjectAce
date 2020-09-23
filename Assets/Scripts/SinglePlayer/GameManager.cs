@@ -156,6 +156,11 @@ public class GameManager : MonoBehaviour
                 animIndex = (animIndex + 1) % rotations.Length;
             }
 
+            foreach(var card in cards)
+            {
+                dealer.AddCardToFaceUpPile2(card);
+            }
+
             player.RemoveCards(cards, animIndices);
             playerPanel.SetCardsLeft(player.myCards.Count);
 
