@@ -383,8 +383,12 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             cardRt.anchorMin = new Vector2(0.5f, 0.5f);
             cardRt.anchorMax = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = new Vector2(0f, 0f);
-            placeholder.transform.SetParent(cardHandGroup);
 
+            // Need to wait 1 frame here to ensure the card's new position can be calculated by Hand.cs successfully
+            myNewCard.transform.SetParent(cardHandGroup);
+            yield return new WaitForEndOfFrame();
+
+            placeholder.transform.SetParent(cardHandGroup);
             placeholder.transform.DOLocalMove(myNewCard.transform.localPosition, 1.25f, true).OnComplete(() =>
             {
                 var myColor = myNewCard.GetComponent<Image>().color;

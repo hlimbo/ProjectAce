@@ -692,22 +692,34 @@ public class ProjectAceNetworkManager : NetworkManager
     }
 
     #region Methods used to evaluate if Card or Cards can be placed on Face Up Pile
+    public void VerifyConfirmedSelection(int clientConnectionId)
+    {
+        if(pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+        {
+            Card[] pendingCards = pendingCardsByConnectionId[clientConnectionId].ToArray();
+
+            if(pendingCards.Length == 1)
+            {
+                TryAddCardToFaceUpPile(clientConnectionId, pendingCards[0]);
+            }
+            else if(pendingCards.Length > 1)
+            {
+                TryAddCardsToFaceUpPile(clientConnectionId, pendingCards);
+            }
+
+            pendingCardsByConnectionId[clientConnectionId].Clear();
+        }
+    }
+
     public void CheckPendingPile(int clientConnectionId)
     {
         if (pendingCardsByConnectionId.ContainsKey(clientConnectionId))
         {
-            Debug.Log("Check PENDING PILE");
             List<Card> pendingCards = pendingCardsByConnectionId[clientConnectionId];
             bool isMoveValid = false;
             if(pendingCards.Count == 1)
             {
-                if(dealer.TopCard != null)
-                {
-                    Debug.Log("Dealer TopCard: " + dealer.TopCard);
-                }
-                Debug.Log("Pending Card: " + pendingCards[0]);
                 isMoveValid = TryAddCardToFaceUpPile(clientConnectionId, pendingCards[0]);
-                Debug.Log("isMoveValid? " + isMoveValid);
             }
             else if(pendingCards.Count > 1)
             {
@@ -739,15 +751,17 @@ public class ProjectAceNetworkManager : NetworkManager
         playerPanels.TryGetValue(clientConnectionId, out playerPanel);
 
         // Don't Evaluate if it's not the player's turn
-        if(playerPanel == null || npc == null || !playerPanel.IsMyTurn)
+        if (playerPanel == null || !playerPanel.IsMyTurn)
         {
-            npc.TargetCardPlacementFailed(npc.connectionToClient, card);
-
-            if(pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+            if(npc != null)
             {
-                pendingCardsByConnectionId[clientConnectionId].Clear();
+                npc.TargetCardPlacementFailed(npc.connectionToClient, card);
+                npc.TargetToggleConfirmSelectionButton(npc.connectionToClient, false);
+                if (pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+                {
+                    pendingCardsByConnectionId[clientConnectionId].Clear();
+                }
             }
-
             return;
         }
 
@@ -758,7 +772,8 @@ public class ProjectAceNetworkManager : NetworkManager
                 pendingCardsByConnectionId[clientConnectionId].Count == 0))
             {
                 Debug.Log("TryAddCardToFaceUpPile called");
-                TryAddCardToFaceUpPile(clientConnectionId, card);
+                bool isValidMove = TryAddCardToFaceUpPile(clientConnectionId, card);
+                npc.TargetToggleConfirmSelectionButton(npc.connectionToClient, false);
                 return;
             }
 
@@ -784,6 +799,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 if(firstCardSuit != lastCardSuit)
                 {
                     npc.TargetOnComboInvalid(npc.connectionToClient, pendingCards);
+                    npc.TargetToggleConfirmSelectionButton(npc.connectionToClient, false);
                     pendingCardsByConnectionId[clientConnectionId].Clear();
                     return;
                 }
@@ -792,6 +808,7 @@ public class ProjectAceNetworkManager : NetworkManager
                 if(totalCardValue > dealer.TopCard?.Value)
                 {
                     npc.TargetOnComboInvalid(npc.connectionToClient, pendingCards);
+                    npc.TargetToggleConfirmSelectionButton(npc.connectionToClient, false);
                     pendingCardsByConnectionId[clientConnectionId].Clear();
                     return;
                 }
@@ -801,7 +818,8 @@ public class ProjectAceNetworkManager : NetworkManager
                     bool isComboValid = TryAddCardsToFaceUpPile(clientConnectionId, 
                         pendingCardsByConnectionId[clientConnectionId].ToArray());
 
-                    Debug.Log("Is ComboValid? " + isComboValid);
+                    npc.TargetToggleConfirmSelectionButton(npc.connectionToClient, false);
+
                     pendingCardsByConnectionId[clientConnectionId].Clear();
                 }
             }           

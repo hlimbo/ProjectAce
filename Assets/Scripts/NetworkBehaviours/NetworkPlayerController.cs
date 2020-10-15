@@ -235,14 +235,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             i.sprite = Utils.cardAssets[newCard.ToString()];
             i.raycastTarget = false;
 
-            placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
-            placeholder.transform.SetParent(drawPileGraphic);
-            placeholder.transform.localScale = new Vector3(1f, 1f, 1f);
-            var cardRt = placeholder.GetComponent<RectTransform>();
-            cardRt.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRt.anchorMax = new Vector2(0.5f, 0.5f);
-            cardRt.anchoredPosition = new Vector2(0f, 0f);
-
             // set to empty and fill in after animation is done
             myNewCard.GetComponent<Image>().sprite = null;
             var myColor = myNewCard.GetComponent<Image>().color;
@@ -296,9 +288,16 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             var newCard = cardValuesToDraw.Dequeue();
             var cardController = myNewCard.GetComponent<CardController>();
 
-            myNewCard.transform.SetParent(cardHandGroup);
+            placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
+            placeholder.transform.SetParent(drawPileGraphic);
+            placeholder.transform.localScale = new Vector3(1f, 1f, 1f);
+            var cardRt = placeholder.GetComponent<RectTransform>();
+            cardRt.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRt.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRt.anchoredPosition = new Vector2(0f, 0f);
 
             // Need to wait 1 frame here to ensure the card's new position can be calculated by Hand.cs successfully
+            myNewCard.transform.SetParent(cardHandGroup);
             yield return new WaitForEndOfFrame();
 
             placeholder.transform.SetParent(cardHandGroup);
@@ -550,7 +549,16 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             //        .Select(cardSelector => cardSelector.card).ToArray();
 
             //CmdSelectedCardsToCombo(connectionId, selectedCards);
+
+            // Will now be the Confirm Selection Button
+            CmdVerifyConfirmedSelection(connectionId);
         }
+    }
+
+    [Command]
+    private void CmdVerifyConfirmedSelection(int clientConnectionId)
+    {
+        Manager.VerifyConfirmedSelection(clientConnectionId);
     }
 
     [Command]
@@ -625,7 +633,14 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     private void CmdSendCardToDealer(Card card)
     {
         // Manager.TryAddCardToFaceUpPile(connectionId, card);
+        TargetToggleConfirmSelectionButton(connectionToClient, true);
         Manager.AddCardToPendingPile(connectionId, card);
+    }
+
+    [TargetRpc]
+    public void TargetToggleConfirmSelectionButton(NetworkConnection clientConnection, bool toggle)
+    {
+        comboButton.SetActive(toggle);
     }
 
     void IPlayerController.SendCardToDealer(Card card)

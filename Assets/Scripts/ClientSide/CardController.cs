@@ -150,14 +150,20 @@ public class CardController : MonoBehaviour
         }
         else
         {
-            tweenMover.OnComplete(() => isDoneMovingBack = true);
+            tweenMover.OnComplete(() => {
+                isDoneMovingBack = true;
+                // Used to ensure cards in hand do not get positioned in odd spots 
+                // (e.g. cards clump together and not respecting the spacing variable provided in Hand.cs)
+                LayoutRebuilder.MarkLayoutForRebuild(originalParent.GetComponent<RectTransform>());
+            });
         }
 
         //clickHandler.enabled = true;
         //dragHandler.enabled = false;
         //dragHandler.isDragging = false;
-        //dragHandler.enabled = true;
+        dragHandler.enabled = true;
         dragHandler.isDragging = false;
+        isPlacedOnTable = false;
     }
 
     public void ResetCard()

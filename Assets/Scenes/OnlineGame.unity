@@ -938,7 +938,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8af12fd81f88ff446a394da5a0c24238, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d9decbe7f2003eb4ba8d019163f807c4, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3027,7 +3027,9 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Combo Button!
+  m_Text: 'Confirm
+
+    Selection'
 --- !u!222 &879566839
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5846,7 +5848,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "Draw Card \n(End Turn)\n"
+  m_Text: 'Draw Card '
 --- !u!222 &1929253816
 CanvasRenderer:
   m_ObjectHideFlags: 0
