@@ -12,7 +12,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     // Client side objects/prefabs
     private GameObject cardPrefab;
     private GameObject opponentCardPrefab;
-    private Transform parent;
 
     private Transform cardHandGroup;
     private GameObject comboButton;
@@ -62,7 +61,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
     // Can belong to either the opponent or current player
     private GameObject cardMat;
-    public GameObject CardMat => cardMat;
 
     // if game is being self-hosted, then this button only belongs to the hosting game client. During headless mode, all clients will have the ability to reset the game on end
     // as long as they are the game leader
@@ -131,10 +129,11 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     {
         foreach (var card in hand)
         {
-            if (card.IsRaised)
-            {
-                card.MoveBackToOriginalLocalPosition();
-            }
+            //if (card.IsRaised)
+            //{
+            //    card.MoveBackToOriginalLocalPosition();
+            //}
+            card.MoveBackToOriginalLocalPosition();
             card.DisableInteraction();
         }
     }
@@ -150,8 +149,15 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetMoveRaisedCardsDown(NetworkConnection clientConnection)
     {
-        List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
-        StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards));
+        //List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
+        //StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards));
+    }
+
+    [TargetRpc]
+    public void TargetMovePendingCardsBack(NetworkConnection clientConnection, Card[] cards)
+    {
+        List<CardController> pendingCards = hand.Where(card => cards.Contains(card.card)).ToList();
+        StartCoroutine(CheckIfAllCardsPutBackInHand(pendingCards));
     }
 
     private IEnumerator CheckIfAllCardsPutBackInHand(List<CardController> raisedCards)
@@ -172,6 +178,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
             yield return null;
         }
+
+        Debug.Log("Done Moving All Cards back in hand");
     }
 
     [Server]
@@ -187,19 +195,25 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         }
     }
 
+    // need to make a syncvar boolean named isSwapping so that the card animations don't get played out
+    // need to revisit quill18creates to figure out how to reorder cards
     private void OnClientMyCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
         CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
         if (op == SyncListCards.Operation.OP_ADD)
         {
             Debug.Log("Addding card: " + newCard);
-            GameObject myNewCard = Instantiate(cardPrefab);
+            GameObject myNewCard = Instantiate(cardPrefab, cardHandGroup, false);
+            Debug.Log("PARENT TRANSFORM: " + myNewCard.transform.parent);
+            myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
+
+            Debug.Log("Card's Parent: " + myNewCard.transform.parent);
+
             var newCardController = myNewCard.GetComponent<CardController>();
             if (newCardController != null)
             {
                 hand.Add(newCardController);
             }
-
 
             // edge case: when there is only 1 player connected to the server and is actively playing
             // do not disable the card.. only disable card when multiple players are connected to the game session
@@ -221,12 +235,18 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             i.sprite = Utils.cardAssets[newCard.ToString()];
             i.raycastTarget = false;
 
+            placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
+            placeholder.transform.SetParent(drawPileGraphic);
+            placeholder.transform.localScale = new Vector3(1f, 1f, 1f);
+            var cardRt = placeholder.GetComponent<RectTransform>();
+            cardRt.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRt.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRt.anchoredPosition = new Vector2(0f, 0f);
+
             // set to empty and fill in after animation is done
             myNewCard.GetComponent<Image>().sprite = null;
             var myColor = myNewCard.GetComponent<Image>().color;
             myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
-            myNewCard.transform.SetParent(cardHandGroup);
-            myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
 
             cardsToDraw.Enqueue(myNewCard);
             cardValuesToDraw.Enqueue(newCard);
@@ -276,20 +296,18 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             var newCard = cardValuesToDraw.Dequeue();
             var cardController = myNewCard.GetComponent<CardController>();
 
-            placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
-            placeholder.transform.SetParent(drawPileGraphic);
-            placeholder.transform.localScale = new Vector3(1f, 1f, 1f);
-            var cardRt = placeholder.GetComponent<RectTransform>();
-            cardRt.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRt.anchorMax = new Vector2(0.5f, 0.5f);
-            cardRt.anchoredPosition = new Vector2(0f, 0f);
-            placeholder.transform.SetParent(cardHandGroup);
+            myNewCard.transform.SetParent(cardHandGroup);
 
+            // Need to wait 1 frame here to ensure the card's new position can be calculated by Hand.cs successfully
+            yield return new WaitForEndOfFrame();
+
+            placeholder.transform.SetParent(cardHandGroup);
             placeholder.transform.DOLocalMove(myNewCard.transform.localPosition, 1.25f, true).OnComplete(() =>
             {
                 var myColor = myNewCard.GetComponent<Image>().color;
                 myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 1f);
                 cardController.Initialize(this, newCard);
+                cardController.ToggleDragHandlerBehaviour(true);
                 Destroy(placeholder);
             });
 
@@ -329,12 +347,13 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         if(hasAuthority)
         {
             myCards.Callback -= OnClientMyCardsUpdated;
+            comboButton?.GetComponent<Button>().onClick.RemoveListener(OnComboButtonSelected);
+            endTurnButton?.GetComponent<Button>().onClick.RemoveListener(OnEndTurnButtonSelected);
         }
     }
 
     private float[] rotations = new float[] { 0f, 15f, 30f, -15f, -30f };
 
-    // call CSController.RemoveCard
     [TargetRpc]
     public void TargetRemoveMyCardFromHand(NetworkConnection clientConnection, Card card, int animIndex)
     {
@@ -352,7 +371,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         }
 
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
-
         audioManager.PlayClip("cardPlacedOnTable");
 
         hand.Remove(cardToRemove);
@@ -438,7 +456,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             Destroy(g);
         }
 
-        // TODO pass in the Queues in here instead
+        // auto plays drop combo animation
         RunCardsAnimsRoutine();
     }
 
@@ -493,7 +511,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
         foreach(var card in hand)
         {
-            card.ToggleClickHandlerBehaviour(true);
+            // card.ToggleClickHandlerBehaviour(true);
+            card.ToggleDragHandlerBehaviour(true);
         }
 
         audioManager.PlayClip("turnNotification");
@@ -524,25 +543,28 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     {
         if(hasAuthority)
         {
-            Card[] selectedCards =
-                hand.Where(cardSelector => cardSelector.IsRaised)
-                    .Select(cardSelector => cardSelector.card).ToArray();
+            // TODO: remake
 
-            CmdSelectedCardsToCombo(connectionId, selectedCards);
+            //Card[] selectedCards =
+            //    hand.Where(cardSelector => cardSelector.IsRaised)
+            //        .Select(cardSelector => cardSelector.card).ToArray();
+
+            //CmdSelectedCardsToCombo(connectionId, selectedCards);
         }
     }
 
     [Command]
     private void CmdSelectedCardsToCombo(int clientConnectionId, Card[] cards)
     {
-        Manager.DealerEvaluateCardsToCombo(clientConnectionId, cards);
+        // TODO: remake in progress
+        // Manager.TryAddCardsToFaceUpPile(clientConnectionId, cards);
     }
 
     [TargetRpc]
     public void TargetOnComboInvalid(NetworkConnection connection, Card[] cards)
     {
         // Safeguard to prevent other network player controllers from moving other player cards down
-        if (!hasAuthority) return;
+        if (!hasAuthority) return;         
 
         // Move cards down
         foreach(var cardSelector in hand)
@@ -560,7 +582,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [Command]
     private void CmdOnEndTurnButtonSelected(int connectionId)
     {
-        Manager.GoToNextTurn();
+        // Manager.GoToNextTurn();
+        Manager.CheckPendingPile(connectionId);
     }
 
     private void OnEndTurnButtonSelected()
@@ -601,27 +624,34 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [Command]
     private void CmdSendCardToDealer(Card card)
     {
-        Manager.TryAddCardToFaceUpPile(connectionId, card);
+        // Manager.TryAddCardToFaceUpPile(connectionId, card);
+        Manager.AddCardToPendingPile(connectionId, card);
+    }
+
+    void IPlayerController.SendCardToDealer(Card card)
+    {
+        CmdSendCardToDealer(card);
     }
 
     [ClientCallback]
     private void Update()
     {
-        if(hasAuthority && canEnableComboButton)
-        {
-            Card[] selectedCards =
-                hand.Where(cardSelector => cardSelector.IsRaised)
-                    .Select(cardSelector => cardSelector.card).ToArray();
+        // TODO: remake
+        //if(hasAuthority && canEnableComboButton)
+        //{
+        //    Card[] selectedCards =
+        //        hand.Where(cardSelector => cardSelector.IsRaised)
+        //            .Select(cardSelector => cardSelector.card).ToArray();
             
-            if(selectedCards.Length >= 2)
-            {
-                comboButton.SetActive(true);
-            }
-            else
-            {
-                comboButton.SetActive(false);
-            }
-        }
+        //    if(selectedCards.Length >= 2)
+        //    {
+        //        comboButton.SetActive(true);
+        //    }
+        //    else
+        //    {
+        //        comboButton.SetActive(false);
+        //    }
+        //}
 
         if(cardsToDraw.Count > 0)
         {
@@ -691,10 +721,5 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetMoveCardsDown(NetworkConnection clientConnection)
     {
         MoveCardsDown();
-    }
-
-    void IPlayerController.SendCardToDealer(Card card)
-    {
-        CmdSendCardToDealer(card);
     }
 }

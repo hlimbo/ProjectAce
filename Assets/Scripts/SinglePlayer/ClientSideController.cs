@@ -79,27 +79,29 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     void Update()
     {
-        if(canEnableComboButton)
-        {
-            Card[] selectedCards = hand
-                .Where(c => c.IsRaised)
-                .Select(c => c.card).ToArray();
+        // TODO: remake
+        //if(canEnableComboButton)
+        //{
+        //    Card[] selectedCards = hand
+        //        .Where(c => c.IsRaised)
+        //        .Select(c => c.card).ToArray();
 
-            if (selectedCards.Length >= 2)
-            {
-                comboButton.gameObject.SetActive(true);
-            }
-            else
-            {
-                comboButton.gameObject.SetActive(false);
-            }
-        }
+        //    if (selectedCards.Length >= 2)
+        //    {
+        //        comboButton.gameObject.SetActive(true);
+        //    }
+        //    else
+        //    {
+        //        comboButton.gameObject.SetActive(false);
+        //    }
+        //}
     }
 
     public void MoveRaisedCardsDown(Action onCardsRaisedDown)
     {
-        List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
-        StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards, onCardsRaisedDown));
+        // TODO: remake in progress
+        //List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
+        //StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards, onCardsRaisedDown));
     }
 
     private IEnumerator CheckIfAllCardsPutBackInHand(List<CardController> raisedCards, Action onCardsRaisedDown)
@@ -128,10 +130,10 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     {
         foreach (var card in hand)
         {
-            if (card.IsRaised)
-            {
-                card.MoveBackToOriginalLocalPosition();
-            }
+            //if (card.IsRaised)
+            //{
+            //    card.MoveBackToOriginalLocalPosition();
+            //}
             card.DisableInteraction();
         }
     }
@@ -272,11 +274,12 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     private void OnComboButtonSelected()
     {
-        Card[] selectedCards = hand
-            .Where(cardSelector => cardSelector.IsRaised)
-            .Select(cardSelector => cardSelector.card).ToArray();
+        // TODO: Remake in progress
+        //Card[] selectedCards = hand
+        //    .Where(cardSelector => cardSelector.IsRaised)
+        //    .Select(cardSelector => cardSelector.card).ToArray();
 
-        Manager.EvaluateCardsToCombo(selectedCards);
+        //Manager.EvaluateCardsToCombo(selectedCards);
     }
 
     private void OnEndTurnButtonSelected()

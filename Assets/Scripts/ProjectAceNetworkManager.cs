@@ -60,8 +60,12 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public readonly Dictionary<int, string> avatarImageNames = new Dictionary<int, string>();
 
+    public readonly Dictionary<int, List<Card>> pendingCardsByConnectionId = new Dictionary<int, List<Card>>();
+
     // Only exists Server-Side
     private Dealer dealer;
+    public bool IsFaceUpPileEmpty => dealer.TopCard == null;
+
     // array with index representing turnOrder and value representing connectionId
     public readonly List<int> turnOrder = new List<int>();
     private int currentTurnIndex = 0;
@@ -151,7 +155,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if(dealer == null)
         {
             dealer = Instantiate(dealerPrefab)?.GetComponent<Dealer>();
-            dealer.PrepareDeck();
+            dealer.PrepareDeck(isDeckShuffled: false);
         }
     }
 
@@ -165,48 +169,6 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         base.OnStopServer();
         currentState = GameState.GAME_LAUNCH;
-    }
-
-    public void TryAddCardToFaceUpPile(int clientConnectionId, Card card)
-    {
-        if(!networkPlayerControllers.ContainsKey(clientConnectionId) || 
-            !playerPanels.ContainsKey(clientConnectionId))
-        {
-            Debug.LogErrorFormat("[Server]: TryAddCardToFaceUpPile clientConnectionId {0} does not exist on server.", clientConnectionId);
-            return;
-        }
-
-        NetworkConnectionToClient conn = NetworkServer.connections[clientConnectionId];
-        var npc = networkPlayerControllers[clientConnectionId];
-        var playerPanel = playerPanels[clientConnectionId];
-
-        // Don't validate card if it isn't the player's turn
-        if (!playerPanel.IsMyTurn)
-        {
-            npc.TargetCardPlacementFailed(conn, card);
-            return;
-        }
-
-
-        if(GameRules.ValidateCard(dealer.TopCard, card))
-        {
-            bool canAddCard = dealer.AddCardToFaceUpPile2(card);
-            if (canAddCard)
-            {
-                Debug.Log("[SERVER]: CARD CAN BE PLAYED THIS TURN!!!!!! " + card);
-                npc.hasPlayedCardOrComboThisTurn = true;
-                npc.myCards.Remove(card);
-                npc.RpcRemoveOpponentCardFromHand(card, animIndex);
-                npc.TargetRemoveMyCardFromHand(conn, card, animIndex);
-                animIndex = (animIndex + 1) % ANIM_VARIATION_COUNT;
-
-                CheckGameStatus(clientConnectionId);
-                return;
-            }
-        }
-
-        // Put card down on failed validation
-        npc.TargetCardPlacementFailed(conn, card);
     }
 
     public void CheckGameStatus(int clientConnectionId)
@@ -272,7 +234,7 @@ public class ProjectAceNetworkManager : NetworkManager
                     optionsPanel = playAgainPanel?.transform.Find("OptionsPanel")?.gameObject;
                     waitingOnHostPanel = playAgainPanel?.transform.Find("WaitingOnHostPanel")?.gameObject;
                     waitingOnHostPanel?.SetActive(false);
-                    playAgainPanel.gameObject.SetActive(false);
+                    playAgainPanel?.gameObject.SetActive(false);
                 }
             }
 
@@ -553,9 +515,21 @@ public class ProjectAceNetworkManager : NetworkManager
                 playerPanels[endingTurnClientConnectionId].StopCountdown(endingTurnClientConnectionId);
                 
                 var npc = networkPlayerControllers[endingTurnClientConnectionId];
-                npc.TargetMoveRaisedCardsDown(NetworkServer.connections[endingTurnClientConnectionId]);
+                //npc.TargetMoveRaisedCardsDown(NetworkServer.connections[endingTurnClientConnectionId]);
+                
+                if(pendingCardsByConnectionId.ContainsKey(endingTurnClientConnectionId) && 
+                    pendingCardsByConnectionId[endingTurnClientConnectionId].Count > 0)
+                {
+                    Card[] pendingCards = pendingCardsByConnectionId[endingTurnClientConnectionId].ToArray();
+                    npc.TargetMovePendingCardsBack(NetworkServer.connections[endingTurnClientConnectionId], pendingCards);
+                }
                 npc.TargetDisableControls(NetworkServer.connections[endingTurnClientConnectionId]);
                 npc.CheckIfPlayerDrawsACard();
+            }
+
+            if(pendingCardsByConnectionId.ContainsKey(endingTurnClientConnectionId))
+            {
+                pendingCardsByConnectionId[endingTurnClientConnectionId].Clear();
             }
         }
 
@@ -563,6 +537,7 @@ public class ProjectAceNetworkManager : NetworkManager
         int nextTurnClientConnectionId = turnOrder[currentTurnIndex];
         if(networkPlayerControllers.ContainsKey(nextTurnClientConnectionId))
         {
+            Debug.Log("Next Turn connection id: " + nextTurnClientConnectionId);
             networkPlayerControllers[nextTurnClientConnectionId].TargetEnableControls(NetworkServer.connections[nextTurnClientConnectionId]);
             playerPanels[nextTurnClientConnectionId].StartCountdown();
         }
@@ -716,7 +691,167 @@ public class ProjectAceNetworkManager : NetworkManager
         }
     }
 
-    public void DealerEvaluateCardsToCombo(int clientConnectionId, Card[] cards)
+    #region Methods used to evaluate if Card or Cards can be placed on Face Up Pile
+    public void CheckPendingPile(int clientConnectionId)
+    {
+        if (pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+        {
+            Debug.Log("Check PENDING PILE");
+            List<Card> pendingCards = pendingCardsByConnectionId[clientConnectionId];
+            bool isMoveValid = false;
+            if(pendingCards.Count == 1)
+            {
+                if(dealer.TopCard != null)
+                {
+                    Debug.Log("Dealer TopCard: " + dealer.TopCard);
+                }
+                Debug.Log("Pending Card: " + pendingCards[0]);
+                isMoveValid = TryAddCardToFaceUpPile(clientConnectionId, pendingCards[0]);
+                Debug.Log("isMoveValid? " + isMoveValid);
+            }
+            else if(pendingCards.Count > 1)
+            {
+                isMoveValid = TryAddCardsToFaceUpPile(clientConnectionId, pendingCards.ToArray());
+            }
+
+            if(!isMoveValid)
+            {
+                GoToNextTurn();
+            }
+
+            pendingCardsByConnectionId[clientConnectionId].Clear();
+        }
+        else
+        {
+            Debug.Log("PENDING CARDS list not found");
+            GoToNextTurn();
+        }
+    }
+
+    public void AddCardToPendingPile(int clientConnectionId, Card card)
+    {
+        Debug.Log("Adding card to pending pile");
+
+        NetworkPlayerController npc;
+        networkPlayerControllers.TryGetValue(clientConnectionId, out npc);
+
+        PlayerPanel playerPanel;
+        playerPanels.TryGetValue(clientConnectionId, out playerPanel);
+
+        // Don't Evaluate if it's not the player's turn
+        if(playerPanel == null || npc == null || !playerPanel.IsMyTurn)
+        {
+            npc.TargetCardPlacementFailed(npc.connectionToClient, card);
+
+            if(pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+            {
+                pendingCardsByConnectionId[clientConnectionId].Clear();
+            }
+
+            return;
+        }
+
+        if(npc != null)
+        {
+            if ((IsFaceUpPileEmpty || card.Value >= dealer.TopCard?.Value) &&
+                (!pendingCardsByConnectionId.ContainsKey(clientConnectionId) || 
+                pendingCardsByConnectionId[clientConnectionId].Count == 0))
+            {
+                Debug.Log("TryAddCardToFaceUpPile called");
+                TryAddCardToFaceUpPile(clientConnectionId, card);
+                return;
+            }
+
+            if (!pendingCardsByConnectionId.ContainsKey(clientConnectionId))
+            {
+                pendingCardsByConnectionId[clientConnectionId] = new List<Card>();
+            }
+
+            pendingCardsByConnectionId[clientConnectionId].Add(card);
+
+            Debug.Log("Add card to pending list: " + card);
+
+            // Combo
+            Card[] pendingCards = pendingCardsByConnectionId[clientConnectionId].ToArray();
+            int pendingCardsCount = pendingCardsByConnectionId[clientConnectionId].Count;
+            if(pendingCardsCount > 1)
+            {
+                Debug.Log("Check For Combo");
+
+                // if first and last card don't match by suit, fail validation
+                SuitType firstCardSuit = pendingCardsByConnectionId[clientConnectionId][0].suit;
+                SuitType lastCardSuit = pendingCardsByConnectionId[clientConnectionId][pendingCardsCount - 1].suit;
+                if(firstCardSuit != lastCardSuit)
+                {
+                    npc.TargetOnComboInvalid(npc.connectionToClient, pendingCards);
+                    pendingCardsByConnectionId[clientConnectionId].Clear();
+                    return;
+                }
+
+                int totalCardValue = pendingCardsByConnectionId[clientConnectionId].Select(c => c.Value).Sum();
+                if(totalCardValue > dealer.TopCard?.Value)
+                {
+                    npc.TargetOnComboInvalid(npc.connectionToClient, pendingCards);
+                    pendingCardsByConnectionId[clientConnectionId].Clear();
+                    return;
+                }
+
+                if(totalCardValue == dealer.TopCard?.Value)
+                {
+                    bool isComboValid = TryAddCardsToFaceUpPile(clientConnectionId, 
+                        pendingCardsByConnectionId[clientConnectionId].ToArray());
+
+                    Debug.Log("Is ComboValid? " + isComboValid);
+                    pendingCardsByConnectionId[clientConnectionId].Clear();
+                }
+            }           
+        }
+    }
+
+    public bool TryAddCardToFaceUpPile(int clientConnectionId, Card card)
+    {
+        if (!networkPlayerControllers.ContainsKey(clientConnectionId) ||
+            !playerPanels.ContainsKey(clientConnectionId))
+        {
+            Debug.LogErrorFormat("[Server]: TryAddCardToFaceUpPile clientConnectionId {0} does not exist on server.", clientConnectionId);
+            return false;
+        }
+
+        NetworkConnectionToClient conn = NetworkServer.connections[clientConnectionId];
+        var npc = networkPlayerControllers[clientConnectionId];
+        var playerPanel = playerPanels[clientConnectionId];
+
+        // Don't validate card if it isn't the player's turn
+        //if (!playerPanel.IsMyTurn)
+        //{
+        //    npc.TargetCardPlacementFailed(conn, card);
+        //    return false;
+        //}
+
+        if (GameRules.ValidateCard(dealer.TopCard, card))
+        {
+            bool canAddCard = dealer.AddCardToFaceUpPile2(card);
+            if (canAddCard)
+            {
+                // Debug.Log("[SERVER]: CARD CAN BE PLAYED THIS TURN!!!!!! " + card);
+                npc.hasPlayedCardOrComboThisTurn = true;
+                npc.myCards.Remove(card);
+                npc.RpcRemoveOpponentCardFromHand(card, animIndex);
+                npc.TargetRemoveMyCardFromHand(conn, card, animIndex);
+                animIndex = (animIndex + 1) % ANIM_VARIATION_COUNT;
+
+                CheckGameStatus(clientConnectionId);
+                return true;
+            }
+        }
+
+        // Put card down on failed validation
+        npc.TargetCardPlacementFailed(conn, card);
+
+        return false;
+    }
+
+    public bool TryAddCardsToFaceUpPile(int clientConnectionId, Card[] cards)
     {
         NetworkPlayerController networkPlayerController;
         networkPlayerControllers.TryGetValue(clientConnectionId, out networkPlayerController);
@@ -763,7 +898,10 @@ public class ProjectAceNetworkManager : NetworkManager
                 networkPlayerController?.TargetOnComboInvalid(clientConnection, cards);
             }
         }
+
+        return isComboValid;
     }
+    #endregion
 
     public void Disconnect()
     {

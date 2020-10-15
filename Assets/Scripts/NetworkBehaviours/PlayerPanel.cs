@@ -205,9 +205,9 @@ public class PlayerPanel : NetworkBehaviour
         if (isMyTurn)
         {
             isMyTurn = false;
-            Manager.GoToNextTurn();
+            // Manager.GoToNextTurn();
+            Manager.CheckPendingPile(connectionId);
         }
-
     }
 
     [ClientRpc]

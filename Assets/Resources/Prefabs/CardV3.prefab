@@ -90,8 +90,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 971eda4dd813caa428417660a6c04495, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  clickHandler: {fileID: 0}
-  dragHandler: {fileID: 0}
+  dragHandler: {fileID: 5868953112861944223}
   isPlacedOnTable: 0
   isDoneMovingBack: 0
 --- !u!114 &8212553081679759193
@@ -101,7 +100,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2217539565347600126}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a527d1920d282094bb3431e339b6e01f, type: 3}
   m_Name: 
