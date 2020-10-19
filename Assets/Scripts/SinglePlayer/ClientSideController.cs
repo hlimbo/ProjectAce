@@ -187,7 +187,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardControllersToRemove)
         {
-            c.ToggleClickHandlerBehaviour(false);
             c.ToggleDragHandlerBehaviour(false);
             hand.Remove(c);
             removals.Push(c.gameObject);
@@ -246,7 +245,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
         foreach(var card in hand)
         {
-            card.ToggleClickHandlerBehaviour(true);
+            card.ToggleDragHandlerBehaviour(true);
         }
     }
 

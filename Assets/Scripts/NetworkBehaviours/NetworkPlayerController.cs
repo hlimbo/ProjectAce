@@ -124,12 +124,9 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
     public void MoveCardsDown()
     {
+        // Card being dragged or has been placed on the table but don't work need to be placed back into the hand.
         foreach (var card in hand)
         {
-            //if (card.IsRaised)
-            //{
-            //    card.MoveBackToOriginalLocalPosition();
-            //}
             card.MoveBackToOriginalLocalPosition();
             card.DisableInteraction();
         }
@@ -432,7 +429,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardSelectorsToRemove)
         {
-            c.ToggleClickHandlerBehaviour(false);
             c.ToggleDragHandlerBehaviour(false);
             hand.Remove(c);
             removals.Push(c.gameObject);
