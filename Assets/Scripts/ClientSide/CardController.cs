@@ -10,51 +10,49 @@ using Mirror;
 public class CardController : MonoBehaviour
 {
     [SerializeField]
-    private ClickHandler clickHandler;
-    [SerializeField]
     private DragHandler dragHandler;
     private IPlayerController owner;
 
+    [SerializeField]
+    private RaiseHandler raiseHandler;
+
+    public bool IsDragging => dragHandler != null && dragHandler.isDragging;
+
     public Card card;
-    public bool IsRaised => clickHandler != null && clickHandler.IsRaised;
     private Image cardImage;
 
     // Variables used to maintain positions within a LayoutGroup
     // as LayoutGroups automatically calculate each child's position
     private Transform originalParent;
     private int originalSiblingIndex;
-    private Vector3 originalPosition;
     private Vector3 originalLocalPosition;
+    public Vector3 OriginalLocalPosition => originalLocalPosition;
 
     private Vector3 rotationAngles;
 
     public bool isPlacedOnTable = false;
-    public float OriginalYPosition => originalPosition.y;
+    public float OriginalYPosition => originalLocalPosition.y;
+
+    private PlayerPanel playerPanel;
+    public PlayerPanel PlayerPanel
+    {
+        get
+        {
+            if(playerPanel == null)
+            {
+                playerPanel = FindObjectsOfType<PlayerPanel>().Where(p => p.hasAuthority).FirstOrDefault();
+            }
+
+            return playerPanel;
+        }
+    }
 
     private void Awake()
     {
-        clickHandler = GetComponent<ClickHandler>();
         dragHandler = GetComponent<DragHandler>();
+        raiseHandler = GetComponent<RaiseHandler>();
         cardImage = GetComponent<Image>();
         rotationAngles = new Vector3(0f, 0f, 0f);
-    }
-
-    private void Update()
-    { 
-        if (IsRaised)
-        {
-            if(!dragHandler.enabled)
-            {
-                dragHandler.enabled = true;
-            }
-        }
-        else
-        {
-            if(dragHandler.enabled)
-            {
-                dragHandler.enabled = false;
-            }
-        }
     }
 
     public void Initialize(IPlayerController player, Card card)
@@ -66,15 +64,13 @@ public class CardController : MonoBehaviour
 
     public void DropCardOnPile()
     {
-        clickHandler.enabled = false;
-
         // Online Multiplayer enabled?
         if(NetworkClient.active || NetworkClient.isLocalClient)
         {
-            var panel = FindObjectsOfType<PlayerPanel>().Where(p => p.hasAuthority).FirstOrDefault();
             // Only allow client to send to server when it is the current player's turn
-            if (panel != null && panel.IsMyTurn)
+            if (PlayerPanel != null && PlayerPanel.IsMyTurn)
             {
+                Debug.Log("Dropping card on pile....");
                 owner.SendCardToDealer(card);
             }
         }
@@ -85,24 +81,14 @@ public class CardController : MonoBehaviour
         }
     }
 
-    public void ToggleClickHandlerBehaviour(bool isEnabled)
-    {
-        clickHandler.enabled = isEnabled;
-    }
-
     public void ToggleDragHandlerBehaviour(bool isEnabled)
     {
         dragHandler.enabled = isEnabled;
     }
 
-    public void MoveBackToOriginalPosition()
+    public void ToggleRaiseHandlerBehaviour(bool isEnabled)
     {
-        clickHandler.enabled = true;
-        dragHandler.enabled = false;
-        clickHandler.ResetState();
-        transform.SetParent(originalParent);
-        transform.SetSiblingIndex(originalSiblingIndex);
-        transform.DOMove(originalPosition, 0.5f, true);
+        raiseHandler.enabled = isEnabled;
     }
 
     public bool isDoneMovingBack;
@@ -110,9 +96,9 @@ public class CardController : MonoBehaviour
     {
         isDoneMovingBack = false;
         dragHandler.SetBlockRaycasts(true);
-        clickHandler.ResetState();
-        
-        if(dragHandler.isDragging)
+        raiseHandler.enabled = false;
+
+        if (dragHandler.isDragging)
         {
             transform.GetComponent<LayoutElement>().ignoreLayout = true;
         }
@@ -127,25 +113,29 @@ public class CardController : MonoBehaviour
             { 
                 transform.GetComponent<LayoutElement>().ignoreLayout = false;
                 isDoneMovingBack = true;
+                raiseHandler.enabled = true;
             });
         }
         else
         {
-            tweenMover.OnComplete(() => isDoneMovingBack = true);
+            tweenMover.OnComplete(() => {
+                isDoneMovingBack = true;
+                raiseHandler.enabled = true;
+                // Used to ensure cards in hand do not get positioned in odd spots 
+                // (e.g. cards clump together and not respecting the spacing variable provided in Hand.cs)
+                LayoutRebuilder.MarkLayoutForRebuild(originalParent.GetComponent<RectTransform>());
+            });
         }
 
-        clickHandler.enabled = true;
-        dragHandler.enabled = false;
+        dragHandler.enabled = true;
         dragHandler.isDragging = false;
+        isPlacedOnTable = false;
     }
 
     public void ResetCard()
     {
         isDoneMovingBack = true;
         dragHandler.SetBlockRaycasts(true);
-        clickHandler.ResetState();
-        clickHandler.enabled = true;
-        dragHandler.enabled = false;
     }
 
     public void MoveToTargetPosition(Transform parent, float targetRotation)
@@ -159,15 +149,8 @@ public class CardController : MonoBehaviour
         transform.DOLocalMove(Vector2.zero, 0.5f, true);
         transform.DORotateQuaternion(rotation, 0.5f);
 
-        clickHandler.enabled = false;
         dragHandler.enabled = false;
-    }
-
-    public void SetTransformPropertiesFromLayoutGroup()
-    {
-        originalParent = transform.parent;
-        originalSiblingIndex = transform.GetSiblingIndex();
-        originalPosition = new Vector3(transform.position.x, transform.position.y, transform.position.z);
+        dragHandler.isDragging = false;
     }
 
     public void SetLocalTransformPropertiesFromLayoutGroup()
@@ -179,9 +162,6 @@ public class CardController : MonoBehaviour
 
     public void DisableInteraction()
     {
-        clickHandler.ResetState();
         dragHandler.SetBlockRaycasts(true);
-        clickHandler.enabled = false;
-        dragHandler.enabled = false;
     }
 }

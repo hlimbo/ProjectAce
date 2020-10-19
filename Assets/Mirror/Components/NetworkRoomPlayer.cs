@@ -59,10 +59,19 @@ namespace Mirror
                 room.RecalculateRoomPlayerIndices();
 
                 if (NetworkClient.active)
-                    OnClientEnterRoom();
+                    room.CallOnClientEnterRoom();
             }
             else
                 logger.LogError("RoomPlayer could not find a NetworkRoomManager. The RoomPlayer requires a NetworkRoomManager object to function. Make sure that there is one in the scene.");
+        }
+
+        public virtual void OnDisable()
+        {
+            if (NetworkClient.active && NetworkManager.singleton is NetworkRoomManager room)
+            {
+                room.roomSlots.Remove(this);
+                room.RecalculateRoomPlayerIndices();
+            }
         }
 
         #endregion

@@ -35,8 +35,6 @@ public class ClickHandler : MonoBehaviour, IPointerClickHandler
                 RaiseCard(controller.OriginalYPosition);
                 break;
             case PointerEventData.InputButton.Right:
-                Debug.Log("Right mouse click");
-                //controller.MoveBackToOriginalPosition();
                 controller.MoveBackToOriginalLocalPosition();
                 break;
             default:

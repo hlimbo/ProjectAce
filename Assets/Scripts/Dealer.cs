@@ -35,11 +35,14 @@ public class Dealer : MonoBehaviour
         faceUpPile.Clear();
     }
 
-    public void PrepareDeck()
+    public void PrepareDeck(bool isDeckShuffled = true)
     {
         drawPile.Clear();
         drawPile.FillCards();
-        drawPile.Shuffle();
+        if(isDeckShuffled)
+        {
+            drawPile.Shuffle();
+        }
     }
 
     public Card[] GetCards(int cardCount)

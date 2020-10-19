@@ -3,6 +3,13 @@ using UnityEngine.EventSystems;
 
 public class FaceUpPile : MonoBehaviour, IDropHandler
 {
+    private AudioManager audioManager;
+
+    private void Awake()
+    {
+        audioManager = FindObjectOfType<AudioManager>();
+    }
+
     public void OnDrop(PointerEventData eventData)
     {
         if(eventData.pointerDrag != null)
@@ -11,6 +18,8 @@ public class FaceUpPile : MonoBehaviour, IDropHandler
             if(cardController != null)
             {
                 cardController.DropCardOnPile();
+                audioManager.PlayClip("cardPlacedOnTable");
+                cardController.MoveToTargetPosition(transform, 0f);
             }
         }
     }

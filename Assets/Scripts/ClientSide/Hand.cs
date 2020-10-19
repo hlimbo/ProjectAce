@@ -51,10 +51,6 @@ public class Hand : HorizontalLayoutGroup
         foreach(var card in cards)
         {
             card.SetLocalTransformPropertiesFromLayoutGroup();
-            if(card.IsRaised)
-            {
-                card.ResetCard();
-            }
         }
     }
 }

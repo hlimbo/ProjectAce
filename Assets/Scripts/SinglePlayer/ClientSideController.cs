@@ -79,27 +79,29 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     void Update()
     {
-        if(canEnableComboButton)
-        {
-            Card[] selectedCards = hand
-                .Where(c => c.IsRaised)
-                .Select(c => c.card).ToArray();
+        // TODO: remake
+        //if(canEnableComboButton)
+        //{
+        //    Card[] selectedCards = hand
+        //        .Where(c => c.IsRaised)
+        //        .Select(c => c.card).ToArray();
 
-            if (selectedCards.Length >= 2)
-            {
-                comboButton.gameObject.SetActive(true);
-            }
-            else
-            {
-                comboButton.gameObject.SetActive(false);
-            }
-        }
+        //    if (selectedCards.Length >= 2)
+        //    {
+        //        comboButton.gameObject.SetActive(true);
+        //    }
+        //    else
+        //    {
+        //        comboButton.gameObject.SetActive(false);
+        //    }
+        //}
     }
 
     public void MoveRaisedCardsDown(Action onCardsRaisedDown)
     {
-        List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
-        StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards, onCardsRaisedDown));
+        // TODO: remake in progress
+        //List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
+        //StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards, onCardsRaisedDown));
     }
 
     private IEnumerator CheckIfAllCardsPutBackInHand(List<CardController> raisedCards, Action onCardsRaisedDown)
@@ -128,10 +130,10 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     {
         foreach (var card in hand)
         {
-            if (card.IsRaised)
-            {
-                card.MoveBackToOriginalLocalPosition();
-            }
+            //if (card.IsRaised)
+            //{
+            //    card.MoveBackToOriginalLocalPosition();
+            //}
             card.DisableInteraction();
         }
     }
@@ -185,7 +187,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardControllersToRemove)
         {
-            c.ToggleClickHandlerBehaviour(false);
             c.ToggleDragHandlerBehaviour(false);
             hand.Remove(c);
             removals.Push(c.gameObject);
@@ -244,7 +245,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
         foreach(var card in hand)
         {
-            card.ToggleClickHandlerBehaviour(true);
+            card.ToggleDragHandlerBehaviour(true);
         }
     }
 
@@ -272,11 +273,12 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     private void OnComboButtonSelected()
     {
-        Card[] selectedCards = hand
-            .Where(cardSelector => cardSelector.IsRaised)
-            .Select(cardSelector => cardSelector.card).ToArray();
+        // TODO: Remake in progress
+        //Card[] selectedCards = hand
+        //    .Where(cardSelector => cardSelector.IsRaised)
+        //    .Select(cardSelector => cardSelector.card).ToArray();
 
-        Manager.EvaluateCardsToCombo(selectedCards);
+        //Manager.EvaluateCardsToCombo(selectedCards);
     }
 
     private void OnEndTurnButtonSelected()
@@ -380,8 +382,12 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             cardRt.anchorMin = new Vector2(0.5f, 0.5f);
             cardRt.anchorMax = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = new Vector2(0f, 0f);
-            placeholder.transform.SetParent(cardHandGroup);
 
+            // Need to wait 1 frame here to ensure the card's new position can be calculated by Hand.cs successfully
+            myNewCard.transform.SetParent(cardHandGroup);
+            yield return new WaitForEndOfFrame();
+
+            placeholder.transform.SetParent(cardHandGroup);
             placeholder.transform.DOLocalMove(myNewCard.transform.localPosition, 1.25f, true).OnComplete(() =>
             {
                 var myColor = myNewCard.GetComponent<Image>().color;
