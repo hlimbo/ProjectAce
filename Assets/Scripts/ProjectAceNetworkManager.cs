@@ -837,14 +837,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
         NetworkConnectionToClient conn = NetworkServer.connections[clientConnectionId];
         var npc = networkPlayerControllers[clientConnectionId];
-        var playerPanel = playerPanels[clientConnectionId];
-
-        // Don't validate card if it isn't the player's turn
-        //if (!playerPanel.IsMyTurn)
-        //{
-        //    npc.TargetCardPlacementFailed(conn, card);
-        //    return false;
-        //}
 
         if (GameRules.ValidateCard(dealer.TopCard, card))
         {

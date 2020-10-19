@@ -13,6 +13,9 @@ public class CardController : MonoBehaviour
     private DragHandler dragHandler;
     private IPlayerController owner;
 
+    [SerializeField]
+    private RaiseHandler raiseHandler;
+
     public bool IsDragging => dragHandler != null && dragHandler.isDragging;
 
     public Card card;
@@ -23,6 +26,7 @@ public class CardController : MonoBehaviour
     private Transform originalParent;
     private int originalSiblingIndex;
     private Vector3 originalLocalPosition;
+    public Vector3 OriginalLocalPosition => originalLocalPosition;
 
     private Vector3 rotationAngles;
 
@@ -46,6 +50,7 @@ public class CardController : MonoBehaviour
     private void Awake()
     {
         dragHandler = GetComponent<DragHandler>();
+        raiseHandler = GetComponent<RaiseHandler>();
         cardImage = GetComponent<Image>();
         rotationAngles = new Vector3(0f, 0f, 0f);
     }
@@ -81,15 +86,19 @@ public class CardController : MonoBehaviour
         dragHandler.enabled = isEnabled;
     }
 
+    public void ToggleRaiseHandlerBehaviour(bool isEnabled)
+    {
+        raiseHandler.enabled = isEnabled;
+    }
+
     public bool isDoneMovingBack;
     public void MoveBackToOriginalLocalPosition()
     {
         isDoneMovingBack = false;
         dragHandler.SetBlockRaycasts(true);
+        raiseHandler.enabled = false;
 
-        Debug.Log("card dragging? " + dragHandler.isDragging);
-
-        if(dragHandler.isDragging)
+        if (dragHandler.isDragging)
         {
             transform.GetComponent<LayoutElement>().ignoreLayout = true;
         }
@@ -104,12 +113,14 @@ public class CardController : MonoBehaviour
             { 
                 transform.GetComponent<LayoutElement>().ignoreLayout = false;
                 isDoneMovingBack = true;
+                raiseHandler.enabled = true;
             });
         }
         else
         {
             tweenMover.OnComplete(() => {
                 isDoneMovingBack = true;
+                raiseHandler.enabled = true;
                 // Used to ensure cards in hand do not get positioned in odd spots 
                 // (e.g. cards clump together and not respecting the spacing variable provided in Hand.cs)
                 LayoutRebuilder.MarkLayoutForRebuild(originalParent.GetComponent<RectTransform>());

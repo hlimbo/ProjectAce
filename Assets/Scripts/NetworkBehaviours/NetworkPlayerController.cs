@@ -356,6 +356,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             return;
         }
 
+        cardToRemove.ToggleRaiseHandlerBehaviour(false);
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
         audioManager.PlayClip("cardPlacedOnTable");
 
@@ -429,6 +430,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardSelectorsToRemove)
         {
+            c.ToggleRaiseHandlerBehaviour(false);
             c.ToggleDragHandlerBehaviour(false);
             hand.Remove(c);
             removals.Push(c.gameObject);

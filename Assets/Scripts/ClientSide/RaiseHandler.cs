@@ -17,10 +17,14 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private Vector3 raisedVector;
 
     private CardController controller;
+    private CanvasGroup canvasGroup;
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        RaiseCard(controller.OriginalYPosition);
+        if(!controller.IsDragging)
+        {
+            RaiseCard(controller.OriginalYPosition);
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -28,16 +32,23 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         isRaised = false;
         isRaising = false;
 
-        if(!controller.IsDragging)
+        if (!controller.IsDragging)
         {
-            controller.MoveBackToOriginalLocalPosition();
+            Debug.Log("OnPointerExit is called");
+            transform.DOLocalMove(controller.OriginalLocalPosition, 0.5f, true);
         }
     }
 
     private void Awake()
     {
         controller = GetComponent<CardController>();
+        canvasGroup = GetComponent<CanvasGroup>();
         raisedVector = new Vector3(0f, raisedHeight);
+    }
+
+    private void OnDisable()
+    {
+        isRaised = isRaising = false;
     }
 
     // Needed to enable/disable this script
