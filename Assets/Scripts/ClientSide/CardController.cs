@@ -68,22 +68,6 @@ public class CardController : MonoBehaviour
     {
         dragHandler.DestroyPlaceholder();
         owner.SendCardToDealer(card);
-
-        // Online Multiplayer enabled?
-        //if(NetworkClient.active || NetworkClient.isLocalClient)
-        //{
-        //    // Only allow client to send to server when it is the current player's turn
-        //    if (PlayerPanel != null && PlayerPanel.IsMyTurn)
-        //    {
-        //        Debug.Log("Dropping card on pile....");
-        //        owner.SendCardToDealer(card);
-        //    }
-        //}
-        //else
-        //{
-        //    // Single Player Mode
-        //    owner.SendCardToDealer(card);
-        //}
     }
 
     public void ToggleDragHandlerBehaviour(bool isEnabled)
@@ -193,8 +177,8 @@ public class CardController : MonoBehaviour
         originalLocalPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, transform.localPosition.z);
     }
 
-    public void DisableInteraction()
+    public void ToggleBlockRaycasts(bool toggle)
     {
-        dragHandler.SetBlockRaycasts(true);
+        dragHandler.SetBlockRaycasts(toggle);
     }
 }

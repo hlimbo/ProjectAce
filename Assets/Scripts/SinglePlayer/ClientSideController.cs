@@ -22,8 +22,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     [SerializeField]
     private AudioManager audioManager;
 
-    private bool canEnableComboButton;
-    private Button comboButton;
+    private Button confirmButton;
     private Button endTurnButton;
 
     private Transform faceUpHolder;
@@ -62,19 +61,19 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         faceUpHolder = GameObject.Find("FaceUpHolder")?.transform;
 
         endTurnButton = GameObject.Find("EndTurnButton")?.GetComponent<Button>();
-        comboButton = GameObject.Find("ComboButton")?.GetComponent<Button>();
+        confirmButton = GameObject.Find("ConfirmButton")?.GetComponent<Button>();
     }
 
     private void Start()
     {
         endTurnButton.onClick.AddListener(OnEndTurnButtonSelected);
-        comboButton.onClick.AddListener(OnComboButtonSelected);
+        confirmButton.onClick.AddListener(OnConfirmSelectionButtonSelected);
     }
 
     private void OnDestroy()
     {
         endTurnButton.onClick.RemoveListener(OnEndTurnButtonSelected);
-        comboButton.onClick.RemoveListener(OnComboButtonSelected);
+        confirmButton.onClick.RemoveListener(OnConfirmSelectionButtonSelected);
     }
 
     void Update()
@@ -126,26 +125,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         onCardsRaisedDown();
     }
 
-    public void MoveCardsDown()
-    {
-        foreach (var card in hand)
-        {
-            //if (card.IsRaised)
-            //{
-            //    card.MoveBackToOriginalLocalPosition();
-            //}
-            card.DisableInteraction();
-        }
-    }
-
-    public void DisableCards()
-    {
-        foreach (var card in hand)
-        {
-            card.DisableInteraction();
-        }
-    }
-
     public void RemoveCard(Card card, float targetRotation)
     {
         if (hand.Count == 0)
@@ -162,6 +141,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         }
 
         cardToRemove.MoveToTargetPosition(faceUpHolder, targetRotation);
+        cardToRemove.ToggleRaiseHandlerBehaviour(false);
         audioManager.PlayClip("cardPlacedOnTable");
         hand.Remove(cardToRemove);
         myCards.Remove(card);
@@ -188,6 +168,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         foreach (var c in cardControllersToRemove)
         {
             c.ToggleDragHandlerBehaviour(false);
+            c.ToggleRaiseHandlerBehaviour(false);
             hand.Remove(c);
             removals.Push(c.gameObject);
         }
@@ -240,7 +221,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     {
         audioManager.PlayClip("turnNotification");
 
-        canEnableComboButton = true;
         endTurnButton.gameObject.SetActive(true);
 
         foreach(var card in hand)
@@ -251,14 +231,8 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     public void DisableControls()
     {
-        canEnableComboButton = false;
-        comboButton.gameObject.SetActive(false);
+        confirmButton.gameObject.SetActive(false);
         endTurnButton.gameObject.SetActive(false);
-
-        foreach(var card in hand)
-        {
-            card.DisableInteraction();
-        }
     }
 
     public void CardPlacementFailed(Card card)
@@ -271,19 +245,14 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         }
     }
 
-    private void OnComboButtonSelected()
+    private void OnConfirmSelectionButtonSelected()
     {
-        // TODO: Remake in progress
-        //Card[] selectedCards = hand
-        //    .Where(cardSelector => cardSelector.IsRaised)
-        //    .Select(cardSelector => cardSelector.card).ToArray();
-
-        //Manager.EvaluateCardsToCombo(selectedCards);
+        Manager.VerifyConfirmedSelection();
     }
 
     private void OnEndTurnButtonSelected()
     {
-        Manager.ResetTurn();
+        Manager.CheckPendingPile();
     }
 
     public void OnComboInvalid(Card[] cards)
@@ -341,7 +310,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
         // set to empty and fill in after animation is done
         newCard.GetComponent<Image>().sprite = null;
-        newCard.GetComponent<CardController>().DisableInteraction();
+        newCard.GetComponent<CardController>().ToggleBlockRaycasts(true);
         var myColor = newCard.GetComponent<Image>().color;
         newCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 0f);
         newCard.transform.SetParent(cardHandGroup);
@@ -442,6 +411,12 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     void IPlayerController.SendCardToDealer(Card card)
     {
-        Manager.TryAddCardToFaceUpPile(card);
+        confirmButton.gameObject.SetActive(true);
+        Manager.AddCardToPendingPile(card);
+    }
+
+    public void ToggleConfirmButton(bool toggle)
+    {
+        confirmButton.gameObject.SetActive(toggle);
     }
 }

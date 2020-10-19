@@ -155,7 +155,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if(dealer == null)
         {
             dealer = Instantiate(dealerPrefab)?.GetComponent<Dealer>();
-            dealer.PrepareDeck(isDeckShuffled: false);
+            dealer.PrepareDeck(isDeckShuffled: true);
         }
     }
 
@@ -742,8 +742,6 @@ public class ProjectAceNetworkManager : NetworkManager
 
     public void AddCardToPendingPile(int clientConnectionId, Card card)
     {
-        Debug.Log("Adding card to pending pile");
-
         NetworkPlayerController npc;
         networkPlayerControllers.TryGetValue(clientConnectionId, out npc);
 

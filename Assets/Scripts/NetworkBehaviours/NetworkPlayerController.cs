@@ -128,15 +128,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         foreach (var card in hand)
         {
             card.MoveBackToOriginalLocalPosition();
-            card.DisableInteraction();
-        }
-    }
-
-    public void DisableCards()
-    {
-        foreach (var card in hand)
-        {
-            card.DisableInteraction();
         }
     }
 
@@ -207,7 +198,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             if (isNewCardAdded)
             {
                 isNewCardAdded = false;
-                newCardController.DisableInteraction();
+                newCardController.ToggleBlockRaycasts(true);
             }
 
             // Draw Card Animation
@@ -333,8 +324,15 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         if(hasAuthority)
         {
             myCards.Callback -= OnClientMyCardsUpdated;
-            confirmSelectionButton?.GetComponent<Button>()?.onClick.RemoveListener(OnConfirmSelectionButtonPressed);
-            endTurnButton?.GetComponent<Button>()?.onClick.RemoveListener(OnEndTurnButtonSelected);
+            if(confirmSelectionButton != null)
+            {
+                confirmSelectionButton.GetComponent<Button>()?.onClick.RemoveListener(OnConfirmSelectionButtonPressed);
+            }
+
+            if(endTurnButton != null)
+            {
+                endTurnButton.GetComponent<Button>()?.onClick.RemoveListener(OnEndTurnButtonSelected);
+            }
         }
     }
 
@@ -508,7 +506,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     {
         confirmSelectionButton.SetActive(false);
         endTurnButton.SetActive(false);
-        DisableCards();
     }
 
     [TargetRpc]

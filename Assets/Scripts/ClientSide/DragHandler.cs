@@ -67,9 +67,6 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         canvasGroup.blocksRaycasts = true;
         if(!controller.isPlacedOnTable)
         {
-            Debug.Log("Moving Card Back to Original Location");
-            //controller.MoveBackToOriginalLocalPosition();
-
             // Side effect.. destroys cardPlaceholder
             controller.MoveBackToHand(cardPlaceholder.transform);
         }

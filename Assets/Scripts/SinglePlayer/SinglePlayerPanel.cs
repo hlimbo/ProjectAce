@@ -137,7 +137,6 @@ public class SinglePlayerPanel : MonoBehaviour
     {
         ToggleTimerUI(false);
         ToggleHighlightPlayerLabel(false);
-        Manager.MoveCardsDown();
         StopAllCoroutines();
     }
 

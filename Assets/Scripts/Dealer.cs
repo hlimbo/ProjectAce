@@ -114,7 +114,6 @@ public class Dealer : MonoBehaviour
         return false;
     }
 
-    // Network Version
     public bool AddCardToFaceUpPile2(Card card)
     {
         return faceUpPile.Add(card);

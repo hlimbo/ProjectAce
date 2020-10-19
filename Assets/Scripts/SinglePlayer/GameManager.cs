@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Boo.Lang;
 
 public class GameManager : MonoBehaviour
 {
@@ -41,6 +42,9 @@ public class GameManager : MonoBehaviour
 
     private PlayAgainPanel playAgainPanel;
     private Button playAgainButton;
+
+    public bool IsFaceUpPileEmpty => dealer.TopCard == null;
+    private List<Card> pendingCards = new List<Card>();
 
     private void Awake()
     {
@@ -118,7 +122,95 @@ public class GameManager : MonoBehaviour
         currentState = GameState.GAME_LAUNCH;
     }
 
-    public void TryAddCardToFaceUpPile(Card card)
+    public void VerifyConfirmedSelection()
+    {
+        if (pendingCards.Count == 1)
+        {
+            TryAddCardToFaceUpPile(pendingCards[0]);
+        }
+        else if (pendingCards.Count > 1)
+        {
+            TryAddCardsToFaceUpPile(pendingCards.ToArray());
+        }
+
+        pendingCards.Clear();
+    }
+
+    public void CheckPendingPile()
+    {
+        if (pendingCards.Count > 0)
+        {
+            bool isMoveValid = false;
+            if (pendingCards.Count == 1)
+            {
+                isMoveValid = TryAddCardToFaceUpPile(pendingCards[0]);
+            }
+            else if (pendingCards.Count > 1)
+            {
+                isMoveValid = TryAddCardsToFaceUpPile(pendingCards.ToArray());
+            }
+
+            if (!isMoveValid)
+            {
+                ResetTurn();
+            }
+
+            pendingCards.Clear();
+        }
+        else
+        {
+            ResetTurn();
+        }
+
+        player.ToggleConfirmButton(false);
+    }
+
+    public void AddCardToPendingPile(Card card)
+    {
+        if((IsFaceUpPileEmpty || card.Value >= dealer.TopCard?.Value) &&
+            pendingCards.Count == 0)
+        {
+            bool isValidMove = TryAddCardToFaceUpPile(card);
+            return;
+        }
+
+        pendingCards.Add(card);
+
+        // Combo
+        if(pendingCards.Count > 1)
+        {
+            Card[] pendingArray = pendingCards.ToArray();
+
+            SuitType firstCardSuit = pendingCards[0].suit;
+            SuitType lastCardSuit = pendingCards[pendingCards.Count - 1].suit;
+            if(firstCardSuit != lastCardSuit)
+            {
+                player.OnComboInvalid(pendingArray);
+                player.ToggleConfirmButton(false);
+                pendingCards.Clear();
+                return;
+            }
+
+            int totalCardValue = pendingCards.Select(p => p.Value).Sum();
+            if(totalCardValue > dealer.TopCard?.Value)
+            {
+                player.OnComboInvalid(pendingArray);
+                player.ToggleConfirmButton(false);
+                pendingCards.Clear();
+                return;
+            }
+            
+            if(totalCardValue == dealer.TopCard?.Value)
+            {
+                TryAddCardsToFaceUpPile(pendingArray);
+                player.ToggleConfirmButton(false);
+                pendingCards.Clear();
+            }
+        }
+
+    }
+
+    public bool TryAddCardToFaceUpPile(Card card)
     {
         if(GameRules.ValidateCard(dealer.TopCard, card))
         {
@@ -131,15 +223,16 @@ public class GameManager : MonoBehaviour
                 playerPanel.SetCardsLeft(player.myCards.Count);
                 CheckGameStatus();
 
-                return;
+                return true;
             }
         }
 
         // If validation fails, move cards back to player hand
         player.CardPlacementFailed(card);
+        return false;
     }
 
-    public void EvaluateCardsToCombo(Card[] cards)
+    public bool TryAddCardsToFaceUpPile(Card[] cards)
     {
         bool isComboValid = dealer.TopCard != null &&
             GameRules.DoCardsAddUpToTopCardValue((Card)dealer.TopCard, cards);
@@ -170,6 +263,8 @@ public class GameManager : MonoBehaviour
         {
             player.OnComboInvalid(cards);
         }
+
+        return isComboValid;
     }
 
     public void CheckGameStatus()
@@ -229,12 +324,9 @@ public class GameManager : MonoBehaviour
         playerPanel.StopCountdown();
         player.CheckIfPlayerDrawsACard();
         player.DisableControls();
-        player.MoveRaisedCardsDown(() =>
-        {
-            // Re-enable controls once all cards are put back in the player's hand
-            player.EnableControls();
-            playerPanel.StartCountdown();
-        });
+
+        playerPanel.StartCountdown();
+        player.EnableControls();
     }
 
     public void DealerGiveCardToPlayer()
@@ -253,11 +345,6 @@ public class GameManager : MonoBehaviour
             playerPanel.SetCardsLeft(player.myCards.Count);
             drawPileCountText.text = dealer.DrawPileCount.ToString();
         }
-    }
-
-    public void MoveCardsDown()
-    {
-        player.MoveCardsDown();
     }
 
     public void StartTurn()
