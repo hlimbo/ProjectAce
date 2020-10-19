@@ -81,7 +81,6 @@ namespace ProjectAce
         public static readonly ValueType[] VALUES = Enum.GetValues(typeof(ValueType)).OfType<ValueType>().ToArray();
 
         public const int MAX_COUNT = 52;
-        // maybe change Card[] to List<Card> we want to be able to remove cards and add cards back to the deck
         private List<Card> cards;
         public int Count => cards.Count;
         public bool IsEmpty => cards.Count == 0;

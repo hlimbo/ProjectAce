@@ -897,7 +897,6 @@ public class ProjectAceNetworkManager : NetworkManager
         {
             if(NetworkServer.connections.TryGetValue(clientConnectionId, out NetworkConnectionToClient clientConnection))
             {
-                // Logging
                 Debug.Log("[Server]: The following cards cannot be combo-ed together for player " + clientConnectionId);
                 Debug.Log("[Server]: Card Length: " + cards.Length);
                 foreach (var card in cards)
