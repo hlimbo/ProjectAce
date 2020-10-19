@@ -17,9 +17,12 @@ public class FaceUpPile : MonoBehaviour, IDropHandler
             var cardController = eventData.pointerDrag.GetComponent<CardController>();
             if(cardController != null)
             {
-                cardController.DropCardOnPile();
-                audioManager.PlayClip("cardPlacedOnTable");
-                cardController.MoveToTargetPosition(transform, 0f);
+                if(cardController.PlayerPanel.IsMyTurn)
+                {
+                    cardController.DropCardOnPile();
+                    audioManager.PlayClip("cardPlacedOnTable");
+                    cardController.MoveToTargetPosition(transform, 0f);
+                }
             }
         }
     }

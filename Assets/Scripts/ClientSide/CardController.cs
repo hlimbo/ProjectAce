@@ -27,6 +27,8 @@ public class CardController : MonoBehaviour
     private int originalSiblingIndex;
     private Vector3 originalLocalPosition;
     public Vector3 OriginalLocalPosition => originalLocalPosition;
+    public int OriginalSiblingIndex => originalSiblingIndex;
+    public Transform OriginalParent => originalParent;
 
     private Vector3 rotationAngles;
 
@@ -64,21 +66,24 @@ public class CardController : MonoBehaviour
 
     public void DropCardOnPile()
     {
+        dragHandler.DestroyPlaceholder();
+        owner.SendCardToDealer(card);
+
         // Online Multiplayer enabled?
-        if(NetworkClient.active || NetworkClient.isLocalClient)
-        {
-            // Only allow client to send to server when it is the current player's turn
-            if (PlayerPanel != null && PlayerPanel.IsMyTurn)
-            {
-                Debug.Log("Dropping card on pile....");
-                owner.SendCardToDealer(card);
-            }
-        }
-        else
-        {
-            // Single Player Mode
-            owner.SendCardToDealer(card);
-        }
+        //if(NetworkClient.active || NetworkClient.isLocalClient)
+        //{
+        //    // Only allow client to send to server when it is the current player's turn
+        //    if (PlayerPanel != null && PlayerPanel.IsMyTurn)
+        //    {
+        //        Debug.Log("Dropping card on pile....");
+        //        owner.SendCardToDealer(card);
+        //    }
+        //}
+        //else
+        //{
+        //    // Single Player Mode
+        //    owner.SendCardToDealer(card);
+        //}
     }
 
     public void ToggleDragHandlerBehaviour(bool isEnabled)
@@ -92,6 +97,34 @@ public class CardController : MonoBehaviour
     }
 
     public bool isDoneMovingBack;
+
+    public void MoveBackToHand(Transform newTransform)
+    {
+        isDoneMovingBack = false;
+        dragHandler.SetBlockRaycasts(true);
+        raiseHandler.enabled = false;
+        transform.GetComponent<LayoutElement>().ignoreLayout = true;
+
+        originalSiblingIndex = newTransform.GetSiblingIndex();
+        originalLocalPosition = newTransform.localPosition;
+
+        transform.SetParent(originalParent);
+        transform.SetSiblingIndex(originalSiblingIndex);
+        var tweenMover = transform.DOLocalMove(originalLocalPosition, 0.5f, true);
+
+        tweenMover.OnComplete(() =>
+        {
+            transform.GetComponent<LayoutElement>().ignoreLayout = false;
+            isDoneMovingBack = true;
+            raiseHandler.enabled = true;
+            Destroy(newTransform.gameObject);
+        });
+
+        dragHandler.enabled = true;
+        dragHandler.isDragging = false;
+        isPlacedOnTable = false;
+    }
+
     public void MoveBackToOriginalLocalPosition()
     {
         isDoneMovingBack = false;

@@ -333,8 +333,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         if(hasAuthority)
         {
             myCards.Callback -= OnClientMyCardsUpdated;
-            confirmSelectionButton?.GetComponent<Button>().onClick.RemoveListener(OnConfirmSelectionButtonPressed);
-            endTurnButton?.GetComponent<Button>().onClick.RemoveListener(OnEndTurnButtonSelected);
+            confirmSelectionButton?.GetComponent<Button>()?.onClick.RemoveListener(OnConfirmSelectionButtonPressed);
+            endTurnButton?.GetComponent<Button>()?.onClick.RemoveListener(OnEndTurnButtonSelected);
         }
     }
 

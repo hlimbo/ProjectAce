@@ -165,7 +165,6 @@ public class PlayerPanel : NetworkBehaviour
         isMyTurn = false;
         RpcToggleTimerUI(false);
         RpcToggleHighlightPlayerLabel(false);
-        Manager.MoveCardsDown(connectionId);
 
         // When only 1 client is actively connected to the server
         if (NetworkServer.connections.Count == 1)
@@ -205,7 +204,6 @@ public class PlayerPanel : NetworkBehaviour
         if (isMyTurn)
         {
             isMyTurn = false;
-            // Manager.GoToNextTurn();
             Manager.CheckPendingPile(connectionId);
         }
     }

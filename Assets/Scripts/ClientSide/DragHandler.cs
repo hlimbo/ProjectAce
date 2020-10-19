@@ -1,7 +1,9 @@
-﻿using System.Collections;
+﻿using ProjectAce;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -10,6 +12,8 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private Transform canvas;
 
     public bool isDragging = false;
+
+    private GameObject cardPlaceholder;
 
     private void Awake()
     {
@@ -22,12 +26,39 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     {
         transform.SetParent(canvas);
         canvasGroup.blocksRaycasts = false;
+        cardPlaceholder = new GameObject("cardPlaceholder");
+        LayoutElement layoutElement = cardPlaceholder.AddComponent<LayoutElement>();
+        layoutElement.preferredWidth = GetComponent<LayoutElement>().preferredWidth;
+        layoutElement.preferredHeight = GetComponent<LayoutElement>().preferredHeight;
+        cardPlaceholder.transform.SetParent(controller.OriginalParent);
+        cardPlaceholder.transform.SetSiblingIndex(controller.OriginalSiblingIndex);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
         isDragging = true;
         transform.position = eventData.position;
+
+        // Rearrange card logic
+        if(transform.position.y - controller.OriginalParent.transform.position.y <= 2f)
+        {
+            int newSiblingIndex = controller.OriginalParent.childCount;
+            for (int i = 0; i < controller.OriginalParent.childCount; ++i)
+            {
+                if (transform.position.x < controller.OriginalParent.GetChild(i).position.x)
+                {
+                    newSiblingIndex = i;
+                    if (cardPlaceholder.transform.GetSiblingIndex() < newSiblingIndex)
+                    {
+                        newSiblingIndex--;
+                    }
+
+                    break;
+                }
+            }
+
+            cardPlaceholder.transform.SetSiblingIndex(newSiblingIndex);
+        }
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -37,7 +68,14 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         if(!controller.isPlacedOnTable)
         {
             Debug.Log("Moving Card Back to Original Location");
-            controller.MoveBackToOriginalLocalPosition();
+            //controller.MoveBackToOriginalLocalPosition();
+
+            // Side effect.. destroys cardPlaceholder
+            controller.MoveBackToHand(cardPlaceholder.transform);
+        }
+        else
+        {
+            Destroy(cardPlaceholder);
         }
     }
 
@@ -49,5 +87,13 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void SetBlockRaycasts(bool toggle)
     {
         canvasGroup.blocksRaycasts = toggle;
+    }
+
+    public void DestroyPlaceholder()
+    {
+        if(cardPlaceholder != null)
+        {
+            Destroy(cardPlaceholder);
+        }
     }
 }
