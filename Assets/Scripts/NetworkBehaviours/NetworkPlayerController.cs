@@ -14,7 +14,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     private GameObject opponentCardPrefab;
 
     private Transform cardHandGroup;
-    private GameObject comboButton;
+    private GameObject confirmSelectionButton;
     private GameObject endTurnButton;
 
     // Available client-side only
@@ -66,9 +66,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     // as long as they are the game leader
     public Button playAgainButton;
 
-    // Is set by the server only when it is this player's turn
-    private bool canEnableComboButton = false;
-
     private void Awake()
     {
         opponentCardMatManager = FindObjectOfType<OpponentCardMatManager>();
@@ -113,13 +110,13 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         base.OnStartAuthority();
 
         cardMat = GameObject.Find("PlayerCardMat");
-        comboButton = GameObject.Find("ComboButton");
+        confirmSelectionButton = GameObject.Find("ConfirmSelectionButton");
         endTurnButton = GameObject.Find("EndTurnButton");
 
-        comboButton?.SetActive(false);
+        confirmSelectionButton?.SetActive(false);
         endTurnButton?.SetActive(false);
 
-        comboButton?.GetComponent<Button>().onClick.AddListener(OnComboButtonSelected);
+        confirmSelectionButton?.GetComponent<Button>().onClick.AddListener(OnConfirmSelectionButtonPressed);
         endTurnButton?.GetComponent<Button>().onClick.AddListener(OnEndTurnButtonSelected);
 
         myCards.Callback += OnClientMyCardsUpdated;
@@ -144,13 +141,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         {
             card.DisableInteraction();
         }
-    }
-
-    [TargetRpc]
-    public void TargetMoveRaisedCardsDown(NetworkConnection clientConnection)
-    {
-        //List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
-        //StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards));
     }
 
     [TargetRpc]
@@ -346,7 +336,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         if(hasAuthority)
         {
             myCards.Callback -= OnClientMyCardsUpdated;
-            comboButton?.GetComponent<Button>().onClick.RemoveListener(OnComboButtonSelected);
+            confirmSelectionButton?.GetComponent<Button>().onClick.RemoveListener(OnConfirmSelectionButtonPressed);
             endTurnButton?.GetComponent<Button>().onClick.RemoveListener(OnEndTurnButtonSelected);
         }
     }
@@ -505,12 +495,10 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetEnableControls(NetworkConnection clientConnection)
     {
-        canEnableComboButton = true;
         endTurnButton.SetActive(true);
 
         foreach(var card in hand)
         {
-            // card.ToggleClickHandlerBehaviour(true);
             card.ToggleDragHandlerBehaviour(true);
         }
 
@@ -520,8 +508,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetDisableControls(NetworkConnection clientConnection)
     {
-        canEnableComboButton = false;
-        comboButton.SetActive(false);
+        confirmSelectionButton.SetActive(false);
         endTurnButton.SetActive(false);
         DisableCards();
     }
@@ -538,19 +525,10 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     }
 
     [Client]
-    private void OnComboButtonSelected()
+    private void OnConfirmSelectionButtonPressed()
     {
         if(hasAuthority)
         {
-            // TODO: remake
-
-            //Card[] selectedCards =
-            //    hand.Where(cardSelector => cardSelector.IsRaised)
-            //        .Select(cardSelector => cardSelector.card).ToArray();
-
-            //CmdSelectedCardsToCombo(connectionId, selectedCards);
-
-            // Will now be the Confirm Selection Button
             CmdVerifyConfirmedSelection(connectionId);
         }
     }
@@ -559,13 +537,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     private void CmdVerifyConfirmedSelection(int clientConnectionId)
     {
         Manager.VerifyConfirmedSelection(clientConnectionId);
-    }
-
-    [Command]
-    private void CmdSelectedCardsToCombo(int clientConnectionId, Card[] cards)
-    {
-        // TODO: remake in progress
-        // Manager.TryAddCardsToFaceUpPile(clientConnectionId, cards);
     }
 
     [TargetRpc]
@@ -590,7 +561,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [Command]
     private void CmdOnEndTurnButtonSelected(int connectionId)
     {
-        // Manager.GoToNextTurn();
         Manager.CheckPendingPile(connectionId);
     }
 
@@ -632,7 +602,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [Command]
     private void CmdSendCardToDealer(Card card)
     {
-        // Manager.TryAddCardToFaceUpPile(connectionId, card);
         TargetToggleConfirmSelectionButton(connectionToClient, true);
         Manager.AddCardToPendingPile(connectionId, card);
     }
@@ -640,7 +609,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [TargetRpc]
     public void TargetToggleConfirmSelectionButton(NetworkConnection clientConnection, bool toggle)
     {
-        comboButton.SetActive(toggle);
+        confirmSelectionButton.SetActive(toggle);
     }
 
     void IPlayerController.SendCardToDealer(Card card)
@@ -651,23 +620,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     [ClientCallback]
     private void Update()
     {
-        // TODO: remake
-        //if(hasAuthority && canEnableComboButton)
-        //{
-        //    Card[] selectedCards =
-        //        hand.Where(cardSelector => cardSelector.IsRaised)
-        //            .Select(cardSelector => cardSelector.card).ToArray();
-            
-        //    if(selectedCards.Length >= 2)
-        //    {
-        //        comboButton.SetActive(true);
-        //    }
-        //    else
-        //    {
-        //        comboButton.SetActive(false);
-        //    }
-        //}
-
+        // TODO: perhaps have this coroutine only called when specific events get triggered instead of checking
+        // every frame if draw card animations is valid
         if(cardsToDraw.Count > 0)
         {
             DrawCardsAnimation();

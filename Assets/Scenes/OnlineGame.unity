@@ -5870,7 +5870,7 @@ GameObject:
   - component: {fileID: 1988037888}
   - component: {fileID: 1988037887}
   m_Layer: 5
-  m_Name: ComboButton
+  m_Name: ConfirmSelectionButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
