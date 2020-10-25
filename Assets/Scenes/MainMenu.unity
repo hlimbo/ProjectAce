@@ -576,7 +576,7 @@ PrefabInstance:
         type: 3}
       propertyPath: networkManagerPrefab
       value: 
-      objectReference: {fileID: 8120532064217043991, guid: 4c59d52c051fc174ab12b80b37a64933,
+      objectReference: {fileID: 8120532064217043991, guid: 8125ca9df3f481f45a69db3820e9d918,
         type: 3}
     - target: {fileID: 8317614279122823645, guid: c1761d5257f3fea478987e3a7c7a705a,
         type: 3}
