@@ -91,6 +91,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             return;
         }
 
+        cardToRemove.DestroyPlaceholder();
         cardToRemove.MoveToTargetPosition(faceUpHolder, targetRotation);
         cardToRemove.DestroyInteractiveComponents();
 
@@ -119,6 +120,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardControllersToRemove)
         {
+            c.DestroyPlaceholder();
             c.DestroyInteractiveComponents();
             hand.Remove(c);
             removals.Push(c.gameObject);
@@ -176,7 +178,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
         foreach(var card in hand)
         {
-            card.ToggleDragHandlerBehaviour(true);
+            card.ToggleInteraction(true);
         }
     }
 
@@ -195,7 +197,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         {
             Debug.Log("card controller: " + cardController.card);
             audioManager.PlayClip("cardShove");
-            cardController.MoveBackToOriginalLocalPosition();
+            cardController.MoveBackToHand();
         }
 
         confirmButton.gameObject.SetActive(false);
@@ -213,9 +215,10 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     public void OnComboInvalid(Card[] cards)
     {
+        // Consider using MoveBackToHand here...
         hand.Where(c => cards.Contains(c.card))
             .ToList()
-            .ForEach(c => c.MoveBackToOriginalLocalPosition());
+            .ForEach(c => c.MoveBackToHand());
 
         confirmButton.gameObject.SetActive(false);
     }
@@ -335,11 +338,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             isInitialTurn = false;
             Manager.StartTurn();
         }
-
-        foreach(var c in hand)
-        {
-            c.ToggleInteraction(true);
-        }
     }
 
     public void OnCardsAdded(Card[] cards)
@@ -362,13 +360,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     public void OnCardAdded(Card card)
     {
         var cardGO = AddCard(card);
-
-        // Disable interaction when a card is being drawn 
-        foreach(var c in hand)
-        {
-            c.ToggleInteraction(false);
-        }
-
         PrepareDrawCardAnimation(cardGO);
         DrawCardsAnimation();
     }

@@ -977,13 +977,4 @@ public class ProjectAceNetworkManager : NetworkManager
         tcpTransport.port = serverConfigs.tcpPort;
         websocketTransport.port = serverConfigs.websocketPort;
     }
-
-    public void MoveCardsDown(int connectionId)
-    {
-        if(networkPlayerControllers.ContainsKey(connectionId))
-        {
-            var clientConnection = networkPlayerControllers[connectionId].connectionToClient;
-            networkPlayerControllers[connectionId].TargetMoveCardsDown(clientConnection);
-        }    
-    }
 }

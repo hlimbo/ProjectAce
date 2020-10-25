@@ -122,15 +122,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         myCards.Callback += OnClientMyCardsUpdated;
     }
 
-    public void MoveCardsDown()
-    {
-        // Card being dragged or has been placed on the table but don't work need to be placed back into the hand.
-        foreach (var card in hand)
-        {
-            card.MoveBackToOriginalLocalPosition();
-        }
-    }
-
     [TargetRpc]
     public void TargetMovePendingCardsBack(NetworkConnection clientConnection, Card[] cards)
     {
@@ -142,7 +133,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     {
         foreach (var card in raisedCards)
         {
-            card.MoveBackToOriginalLocalPosition();
+            card.MoveBackToHand();
         }
 
         bool areAllCardsMovedBack = false;
@@ -186,12 +177,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             if (newCardController != null)
             {
                 hand.Add(newCardController);
-            }
-
-            // Disable Card Behaviour since it will be in the middle of animation
-            foreach (var c in hand)
-            {
-                c.ToggleInteraction(false);
             }
 
             // edge case: when there is only 1 player connected to the server and is actively playing
@@ -299,11 +284,11 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         {
             CmdCheckForTurn();
             isReceivingInitialHand = false;
-        }
-
-        foreach (var c in hand)
-        {
-            c.ToggleInteraction(true);
+            
+            foreach (var c in hand)
+            {
+                c.ToggleInteraction(true);
+            }
         }
     }
 
@@ -361,6 +346,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
         cardToRemove.DestroyInteractiveComponents();
+        cardToRemove.DestroyPlaceholder();
         audioManager.PlayClip("cardPlacedOnTable");
 
         hand.Remove(cardToRemove);
@@ -442,6 +428,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         while (removals.Count > 0)
         {
             GameObject g = removals.Pop();
+            g.GetComponent<CardController>().DestroyPlaceholder();
             Destroy(g);
         }
 
@@ -490,6 +477,11 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetPlayerReceivesInitialHand(NetworkConnection clientConnection)
     {
         isReceivingInitialHand = true;
+        // Disable Card Behaviour since it will be in the middle of animation
+        foreach (var c in hand)
+        {
+            c.ToggleInteraction(false);
+        }
     }
 
     [TargetRpc]
@@ -519,7 +511,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         if(cardController != null)
         {
             audioManager.PlayClip("cardShove");
-            cardController.MoveBackToOriginalLocalPosition();
+            cardController.MoveBackToHand();
         }
     }
 
@@ -542,18 +534,13 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetOnComboInvalid(NetworkConnection connection, Card[] cards)
     {
         // Safeguard to prevent other network player controllers from moving other player cards down
-        if (!hasAuthority) return;         
+        if (!hasAuthority) return;
 
         // Move cards down
-        foreach(var cardSelector in hand)
+        var selectedCards = hand.Where(c => cards.Contains(c.card)).ToArray();
+        foreach(var card in selectedCards)
         {
-            foreach(var card in cards)
-            {
-                if(cardSelector.card.Equals(card))
-                {
-                    cardSelector.MoveBackToOriginalLocalPosition();
-                }
-            }
+            card.MoveBackToHand();
         }
     }
 
@@ -683,11 +670,5 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     {
         Debug.Log("TargetDidAddNewCard Active Player Count: " + activePlayerCount);
         isNewCardAdded = activePlayerCount > 1;
-    }
-
-    [TargetRpc]
-    public void TargetMoveCardsDown(NetworkConnection clientConnection)
-    {
-        MoveCardsDown();
     }
 }

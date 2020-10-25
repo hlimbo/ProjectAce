@@ -52,6 +52,11 @@ public class CardController : MonoBehaviour
         }
     }
 
+    private GameObject cardPlaceholder;
+    public GameObject CardPlaceholder => cardPlaceholder;
+    [SerializeField]
+    private GameObject cardPlaceholderTemplate;
+
     private void Awake()
     {
         dragHandler = GetComponent<DragHandler>();
@@ -70,7 +75,6 @@ public class CardController : MonoBehaviour
 
     public void DropCardOnPile()
     {
-        dragHandler.DestroyPlaceholder();
         owner.SendCardToDealer(card);
     }
 
@@ -86,7 +90,7 @@ public class CardController : MonoBehaviour
 
     public bool isDoneMovingBack;
 
-    public void MoveBackToHand(Transform newTransform)
+    public void MoveBackToHand()
     {
         Debug.Log("MoveBackToHand");
 
@@ -95,8 +99,8 @@ public class CardController : MonoBehaviour
         raiseHandler.enabled = false;
         transform.GetComponent<LayoutElement>().ignoreLayout = true;
 
-        originalSiblingIndex = newTransform.GetSiblingIndex();
-        originalLocalPosition = newTransform.localPosition;
+        originalSiblingIndex = cardPlaceholder.transform.GetSiblingIndex();
+        originalLocalPosition = cardPlaceholder.transform.localPosition;
 
         transform.SetParent(originalParent);
         transform.SetSiblingIndex(originalSiblingIndex);
@@ -107,10 +111,7 @@ public class CardController : MonoBehaviour
             transform.GetComponent<LayoutElement>().ignoreLayout = false;
             isDoneMovingBack = true;
             raiseHandler.enabled = true;
-            if(newTransform != null && newTransform.gameObject != null)
-            {
-                Destroy(newTransform.gameObject);
-            }
+            DestroyPlaceholder();
         });
 
         dragHandler.enabled = true;
@@ -208,5 +209,45 @@ public class CardController : MonoBehaviour
         Destroy(raiseHandler);
         dragHandler = null;
         raiseHandler = null;
+    }
+
+    public void InitPlaceholder()
+    {
+        cardPlaceholder = Instantiate(cardPlaceholderTemplate);
+        cardPlaceholder.transform.SetParent(OriginalParent);
+        cardPlaceholder.transform.SetSiblingIndex(OriginalSiblingIndex);
+        cardPlaceholder.transform.localScale = Vector3.one;
+    }
+
+    public void DestroyPlaceholder()
+    {
+        if(cardPlaceholder != null)
+        {
+            Destroy(cardPlaceholder);
+        }
+    }
+
+    public void ReorderCard()
+    {
+        float distance = transform.position.y - cardPlaceholder.transform.position.y;
+        if (distance <= 80f)
+        {
+            int newSiblingIndex = OriginalParent.childCount;
+            for (int i = 0; i < OriginalParent.childCount; ++i)
+            {
+                if (transform.position.x < OriginalParent.GetChild(i).position.x)
+                {
+                    newSiblingIndex = i;
+                    if (cardPlaceholder.transform.GetSiblingIndex() < newSiblingIndex)
+                    {
+                        newSiblingIndex--;
+                    }
+
+                    break;
+                }
+            }
+
+            cardPlaceholder.transform.SetSiblingIndex(newSiblingIndex);
+        }
     }
 }

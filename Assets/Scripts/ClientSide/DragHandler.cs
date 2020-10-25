@@ -13,11 +13,6 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private Transform canvas;
 
     public bool isDragging = false;
-
-    private GameObject cardPlaceholder;
-    [SerializeField]
-    private GameObject cardPlaceholderTemplate;
-
     private RaiseHandler raiseHandler;
 
     private void Awake()
@@ -37,37 +32,17 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         // Stops card from flickering while dragging
         layoutElement.ignoreLayout = true;
 
-        cardPlaceholder = Instantiate(cardPlaceholderTemplate);
-        cardPlaceholder.transform.SetParent(controller.OriginalParent);
-        cardPlaceholder.transform.SetSiblingIndex(controller.OriginalSiblingIndex);
-        cardPlaceholder.transform.localScale = Vector3.one;
+        if(controller.CardPlaceholder == null)
+        {
+            controller.InitPlaceholder();
+        }
     }
 
     public void OnDrag(PointerEventData eventData)
     {
         isDragging = true;
         transform.position = eventData.position;
-
-        // Rearrange card logic
-        if(transform.position.y - controller.OriginalParent.transform.position.y <= 2f)
-        {
-            int newSiblingIndex = controller.OriginalParent.childCount;
-            for (int i = 0; i < controller.OriginalParent.childCount; ++i)
-            {
-                if (transform.position.x < controller.OriginalParent.GetChild(i).position.x)
-                {
-                    newSiblingIndex = i;
-                    if (cardPlaceholder.transform.GetSiblingIndex() < newSiblingIndex)
-                    {
-                        newSiblingIndex--;
-                    }
-
-                    break;
-                }
-            }
-
-            cardPlaceholder.transform.SetSiblingIndex(newSiblingIndex);
-        }
+        controller.ReorderCard();
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -80,12 +55,7 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         if(!controller.isPlacedOnTable)
         {
             // Side effect.. destroys cardPlaceholder
-            controller.MoveBackToHand(cardPlaceholder.transform);
-        }
-        else
-        {
-            Destroy(cardPlaceholder);
-            cardPlaceholder = null;
+            controller.MoveBackToHand();
         }
     }
 
@@ -97,13 +67,5 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void SetBlockRaycasts(bool toggle)
     {
         canvasGroup.blocksRaycasts = toggle;
-    }
-
-    public void DestroyPlaceholder()
-    {
-        if(cardPlaceholder != null)
-        {
-            Destroy(cardPlaceholder);
-        }
     }
 }

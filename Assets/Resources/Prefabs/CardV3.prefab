@@ -92,7 +92,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dragHandler: {fileID: 5868953112861944223}
   raiseHandler: {fileID: 6909716627466515781}
+  card:
+    suit: 0
+    value: 0
   isPlacedOnTable: 0
+  cardPlaceholderTemplate: {fileID: 3779482888959195907, guid: 49fbf6ab6f3fe2d4682fcde889a26a5d,
+    type: 3}
   isDoneMovingBack: 0
 --- !u!114 &5868953112861944223
 MonoBehaviour:
@@ -107,8 +112,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isDragging: 0
-  cardPlaceholderTemplate: {fileID: 3779482888959195907, guid: 49fbf6ab6f3fe2d4682fcde889a26a5d,
-    type: 3}
 --- !u!114 &6909716627466515781
 MonoBehaviour:
   m_ObjectHideFlags: 0

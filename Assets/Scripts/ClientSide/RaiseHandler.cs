@@ -42,6 +42,8 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             return;
         }
 
+        controller.InitPlaceholder();
+
         transform.SetParent(playerCardMat);
         rectTransform.localScale = new Vector3(1.5f, 1.5f, 1f);
         RaiseCard(controller.OriginalLocalPosition.y);
@@ -57,6 +59,7 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         if (!controller.IsDragging)
         {
             transform.DOLocalMoveY(controller.OriginalLocalPosition.y, 0.5f, true);
+            controller.DestroyPlaceholder();
         }
         else
         {
