@@ -23,6 +23,7 @@ namespace ProjectAce
         KING 
     };
 
+    [System.Serializable]
     public struct Card
     {
         public SuitType suit;

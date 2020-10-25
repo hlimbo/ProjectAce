@@ -76,55 +76,6 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         confirmButton.onClick.RemoveListener(OnConfirmSelectionButtonSelected);
     }
 
-    void Update()
-    {
-        // TODO: remake
-        //if(canEnableComboButton)
-        //{
-        //    Card[] selectedCards = hand
-        //        .Where(c => c.IsRaised)
-        //        .Select(c => c.card).ToArray();
-
-        //    if (selectedCards.Length >= 2)
-        //    {
-        //        comboButton.gameObject.SetActive(true);
-        //    }
-        //    else
-        //    {
-        //        comboButton.gameObject.SetActive(false);
-        //    }
-        //}
-    }
-
-    public void MoveRaisedCardsDown(Action onCardsRaisedDown)
-    {
-        // TODO: remake in progress
-        //List<CardController> raisedCards = hand.Where(card => card.IsRaised).ToList();
-        //StartCoroutine(CheckIfAllCardsPutBackInHand(raisedCards, onCardsRaisedDown));
-    }
-
-    private IEnumerator CheckIfAllCardsPutBackInHand(List<CardController> raisedCards, Action onCardsRaisedDown)
-    {
-        foreach (var card in raisedCards)
-        {
-            card.MoveBackToOriginalLocalPosition();
-        }
-
-        bool areAllCardsMovedBack = false;
-        while (!areAllCardsMovedBack)
-        {
-            areAllCardsMovedBack = true;
-            foreach (var card in raisedCards)
-            {
-                areAllCardsMovedBack = areAllCardsMovedBack && card.isDoneMovingBack;
-            }
-
-            yield return null;
-        }
-
-        onCardsRaisedDown();
-    }
-
     public void RemoveCard(Card card, float targetRotation)
     {
         if (hand.Count == 0)
@@ -141,7 +92,8 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         }
 
         cardToRemove.MoveToTargetPosition(faceUpHolder, targetRotation);
-        cardToRemove.ToggleRaiseHandlerBehaviour(false);
+        cardToRemove.DestroyInteractiveComponents();
+
         audioManager.PlayClip("cardPlacedOnTable");
         hand.Remove(cardToRemove);
         myCards.Remove(card);
@@ -167,8 +119,7 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardControllersToRemove)
         {
-            c.ToggleDragHandlerBehaviour(false);
-            c.ToggleRaiseHandlerBehaviour(false);
+            c.DestroyInteractiveComponents();
             hand.Remove(c);
             removals.Push(c.gameObject);
         }
@@ -237,12 +188,17 @@ public class ClientSideController : MonoBehaviour, IPlayerController
 
     public void CardPlacementFailed(Card card)
     {
+        Debug.Log("Failed to add: " + card);
         CardController cardController = hand.Where(c => c.card.Equals(card)).FirstOrDefault();
+
         if(cardController != null)
         {
+            Debug.Log("card controller: " + cardController.card);
             audioManager.PlayClip("cardShove");
             cardController.MoveBackToOriginalLocalPosition();
         }
+
+        confirmButton.gameObject.SetActive(false);
     }
 
     private void OnConfirmSelectionButtonSelected()
@@ -260,6 +216,8 @@ public class ClientSideController : MonoBehaviour, IPlayerController
         hand.Where(c => cards.Contains(c.card))
             .ToList()
             .ForEach(c => c.MoveBackToOriginalLocalPosition());
+
+        confirmButton.gameObject.SetActive(false);
     }
 
     public IEnumerator PlayDealCardSounds()
@@ -377,6 +335,11 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             isInitialTurn = false;
             Manager.StartTurn();
         }
+
+        foreach(var c in hand)
+        {
+            c.ToggleInteraction(true);
+        }
     }
 
     public void OnCardsAdded(Card[] cards)
@@ -387,12 +350,25 @@ public class ClientSideController : MonoBehaviour, IPlayerController
             PrepareDrawCardAnimation(cardGO);
         }
 
+        // Disable interaction when a card is being drawn 
+        foreach (var c in hand)
+        {
+            c.ToggleInteraction(false);
+        }
+
         DrawCardsAnimation();
     }
 
     public void OnCardAdded(Card card)
     {
         var cardGO = AddCard(card);
+
+        // Disable interaction when a card is being drawn 
+        foreach(var c in hand)
+        {
+            c.ToggleInteraction(false);
+        }
+
         PrepareDrawCardAnimation(cardGO);
         DrawCardsAnimation();
     }
@@ -413,6 +389,15 @@ public class ClientSideController : MonoBehaviour, IPlayerController
     {
         confirmButton.gameObject.SetActive(true);
         Manager.AddCardToPendingPile(card);
+    }
+
+    public void MoveToFaceUpPilePending(Card card, Transform faceUpPile)
+    {
+        CardController cardController = hand.Where(c => c.card.Equals(card)).FirstOrDefault();
+        if (cardController != null)
+        {
+            cardController.MoveToTargetPosition(faceUpPile, 0f);
+        }
     }
 
     public void ToggleConfirmButton(bool toggle)

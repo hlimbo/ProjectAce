@@ -21,11 +21,12 @@ public class FaceUpPile : MonoBehaviour, IDropHandler
             var cardController = eventData.pointerDrag.GetComponent<CardController>();
             if(cardController != null)
             {
-                if(NetworkClient.active && NetworkClient.isConnected)
+                audioManager.PlayClip("cardPlacedOnTable");
+
+                if (NetworkClient.active && NetworkClient.isConnected)
                 {
                     if(cardController.PlayerPanel.IsMyTurn)
                     {
-                        audioManager.PlayClip("cardPlacedOnTable");
                         cardController.DropCardOnPile();
                         cardController.MoveToTargetPosition(transform, 0f);
                     }
@@ -33,9 +34,7 @@ public class FaceUpPile : MonoBehaviour, IDropHandler
                 else if(clientSideController != null)
                 {
                     // Single Player Mode
-                    audioManager.PlayClip("cardPlacedOnTable");
                     cardController.DropCardOnPile();
-                    cardController.MoveToTargetPosition(transform, 0f);
                 }
             }
         }

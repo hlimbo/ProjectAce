@@ -164,44 +164,4 @@ public class CardHandGroup : UIBehaviour, ILayoutGroup
             rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x, (rectTransform.rect.height / groupFactor) * i - ((lastHeight / verticalAlignmentFactor) * (transform.childCount - 1)));
         }
     }
-
-    private void SetChildPivot(TextAnchor anchor, ref RectTransform rectTransform)
-    {
-        // TODO: refactor AnchorPresetsUtils to use TextAnchor enum and have AnchorPresetsUtils set the pivot of a RectTransform
-        switch (anchor)
-        {
-            case TextAnchor.UpperLeft:
-                rectTransform.pivot = new Vector2(0f, 1f);
-                break;
-            case TextAnchor.UpperRight:
-                rectTransform.pivot = new Vector2(1f, 1f);
-                break;
-            case TextAnchor.UpperCenter:
-                rectTransform.pivot = new Vector2(0.5f, 1f);
-                break;
-            case TextAnchor.MiddleLeft:
-                rectTransform.pivot = new Vector2(0f, 0.5f);
-                break;
-            case TextAnchor.MiddleRight:
-                rectTransform.pivot = new Vector2(1f, 0.5f);
-                break;
-            case TextAnchor.MiddleCenter:
-                rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                break;
-            case TextAnchor.LowerLeft:
-                rectTransform.pivot = new Vector2(0f, 0f);
-                break;
-            case TextAnchor.LowerRight:
-                rectTransform.pivot = new Vector2(1f, 0f);
-                break;
-            case TextAnchor.LowerCenter:
-                rectTransform.pivot = new Vector2(0.5f, 0f);
-                break;
-            default:
-                Debug.LogError("SetPivot invalid TextAnchor option");
-                break;
-        }
-
-    }
-
 }

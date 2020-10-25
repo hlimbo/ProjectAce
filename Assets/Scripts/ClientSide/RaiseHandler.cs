@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using DG.Tweening;
+using Mirror.Cloud.Examples.Pong;
 
 public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -15,35 +17,51 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private float tweenTransitionTime = 0.5f;
 
     private Vector3 raisedVector;
-
     private CardController controller;
-    private CanvasGroup canvasGroup;
+    private RectTransform rectTransform;
+    private LayoutElement layoutElement;
 
-    public void OnPointerEnter(PointerEventData eventData)
-    {
-        if(!controller.IsDragging)
-        {
-            RaiseCard(controller.OriginalYPosition);
-        }
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        isRaised = false;
-        isRaising = false;
-
-        if (!controller.IsDragging)
-        {
-            Debug.Log("OnPointerExit is called");
-            transform.DOLocalMove(controller.OriginalLocalPosition, 0.5f, true);
-        }
-    }
+    private Transform playerCardMat;
 
     private void Awake()
     {
         controller = GetComponent<CardController>();
-        canvasGroup = GetComponent<CanvasGroup>();
+        rectTransform = GetComponent<RectTransform>();
+        layoutElement = GetComponent<LayoutElement>();
         raisedVector = new Vector3(0f, raisedHeight);
+
+        playerCardMat = GameObject.Find("PlayerCardMat")?.transform;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        // Check if a card is already being dragged
+        if(eventData.dragging)
+        {
+            // Don't play hover animation if some other game object is already being dragged
+            return;
+        }
+
+        transform.SetParent(playerCardMat);
+        rectTransform.localScale = new Vector3(1.5f, 1.5f, 1f);
+        RaiseCard(controller.OriginalLocalPosition.y);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        rectTransform.localScale = new Vector3(1f, 1f, 1f);
+        transform.SetParent(controller.OriginalParent);
+        transform.SetSiblingIndex(controller.OriginalSiblingIndex);
+        isRaised = isRaising = false;
+
+        if (!controller.IsDragging)
+        {
+            transform.DOLocalMoveY(controller.OriginalLocalPosition.y, 0.5f, true);
+        }
+        else
+        {
+            enabled = false;
+        }
     }
 
     private void OnDisable()
@@ -57,36 +75,14 @@ public class RaiseHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         
     }
 
-    private void RaiseCard(float originalYPosition)
+    private void RaiseCard(float startingYPosition)
     {
-        if (!isRaised && !isRaising)
-        {
-            transform.DOMove(transform.position + raisedVector, tweenTransitionTime, true);
-            isRaising = true;
-            StartCoroutine(WaitUntilRaised(originalYPosition));
-        }
-    }
-
-    private IEnumerator WaitUntilRaised(float originalYPosition)
-    {
-        // To handle floating point inprecisions
-        float tolerance = 0.001f;
-        while (transform.position.y < originalYPosition + raisedVector.y - tolerance)
-        {
-            if (!isRaising)
+        isRaising = true;
+        transform.DOLocalMoveY(transform.localPosition.y + raisedHeight, tweenTransitionTime, true)
+            .OnComplete(() =>
             {
-                // stop checking if card isn't in the middle of being raised up
-                yield break;
-            }
-
-            yield return null;
-        }
-
-        if (isRaising)
-        {
-            isRaised = true;
-        }
-
-        isRaising = false;
+                isRaising = false;
+                isRaised = true;
+            });
     }
 }

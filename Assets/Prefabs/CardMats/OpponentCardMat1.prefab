@@ -87,10 +87,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5b2253ecac9c0d40a3d90c99adf651b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  horizontalFaceDownCardPrefab: {fileID: 1689869027594732891, guid: 027bb37923f30b04aabf961c6c8cfaa3,
-    type: 3}
-  verticalFaceDownCardPrefab: {fileID: 1812084013704355898, guid: 22c21b21e38069640833ffb9e56e3649,
-    type: 3}
+  anchorPreset: 1
 --- !u!1 &5970584620430640618
 GameObject:
   m_ObjectHideFlags: 0
@@ -213,7 +210,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -245.6, y: 400.3}
+  m_SizeDelta: {x: -245.6, y: 143.4}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &5970584621237330257
 MonoBehaviour:
@@ -266,10 +263,10 @@ RectTransform:
   m_Father: {fileID: 5970584619745880295}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 245.6, y: 143.4}
+  m_AnchorMin: {x: 0.08666667, y: 1}
+  m_AnchorMax: {x: 0.9066667, y: 1}
+  m_AnchoredPosition: {x: 1, y: 0}
+  m_SizeDelta: {x: -0.3999939, y: 143.4}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &5970584621557035087
 CanvasRenderer:

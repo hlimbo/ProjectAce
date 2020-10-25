@@ -151,7 +151,7 @@ public class SinglePlayerPanel : MonoBehaviour
         }
 
         timeLeft = 0f;
-        Manager.ResetTurn();
+        Manager.CheckPendingPile();
     }
 
 }

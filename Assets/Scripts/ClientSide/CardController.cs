@@ -11,10 +11,12 @@ public class CardController : MonoBehaviour
 {
     [SerializeField]
     private DragHandler dragHandler;
-    private IPlayerController owner;
 
     [SerializeField]
     private RaiseHandler raiseHandler;
+
+    private IPlayerController owner;
+    private RectTransform rectTransform;
 
     public bool IsDragging => dragHandler != null && dragHandler.isDragging;
 
@@ -24,6 +26,7 @@ public class CardController : MonoBehaviour
     // Variables used to maintain positions within a LayoutGroup
     // as LayoutGroups automatically calculate each child's position
     private Transform originalParent;
+
     private int originalSiblingIndex;
     private Vector3 originalLocalPosition;
     public Vector3 OriginalLocalPosition => originalLocalPosition;
@@ -55,6 +58,7 @@ public class CardController : MonoBehaviour
         raiseHandler = GetComponent<RaiseHandler>();
         cardImage = GetComponent<Image>();
         rotationAngles = new Vector3(0f, 0f, 0f);
+        rectTransform = GetComponent<RectTransform>();
     }
 
     public void Initialize(IPlayerController player, Card card)
@@ -84,6 +88,8 @@ public class CardController : MonoBehaviour
 
     public void MoveBackToHand(Transform newTransform)
     {
+        Debug.Log("MoveBackToHand");
+
         isDoneMovingBack = false;
         dragHandler.SetBlockRaycasts(true);
         raiseHandler.enabled = false;
@@ -101,7 +107,10 @@ public class CardController : MonoBehaviour
             transform.GetComponent<LayoutElement>().ignoreLayout = false;
             isDoneMovingBack = true;
             raiseHandler.enabled = true;
-            Destroy(newTransform.gameObject);
+            if(newTransform != null && newTransform.gameObject != null)
+            {
+                Destroy(newTransform.gameObject);
+            }
         });
 
         dragHandler.enabled = true;
@@ -111,6 +120,8 @@ public class CardController : MonoBehaviour
 
     public void MoveBackToOriginalLocalPosition()
     {
+        Debug.Log("MoveBackToLocalPos");
+
         isDoneMovingBack = false;
         dragHandler.SetBlockRaycasts(true);
         raiseHandler.enabled = false;
@@ -124,7 +135,7 @@ public class CardController : MonoBehaviour
         transform.SetSiblingIndex(originalSiblingIndex);
         var tweenMover = transform.DOLocalMove(originalLocalPosition, 0.5f, true);
 
-        if(dragHandler.isDragging)
+        if (dragHandler.isDragging)
         {
             tweenMover.OnComplete(() => 
             { 
@@ -157,6 +168,8 @@ public class CardController : MonoBehaviour
 
     public void MoveToTargetPosition(Transform parent, float targetRotation)
     {
+        Debug.Log("MoveToTargetPos");
+
         isPlacedOnTable = true;
         rotationAngles.z = targetRotation;
         Quaternion rotation = Quaternion.Euler(rotationAngles);
@@ -168,6 +181,7 @@ public class CardController : MonoBehaviour
 
         dragHandler.enabled = false;
         dragHandler.isDragging = false;
+        raiseHandler.enabled = false;
     }
 
     public void SetLocalTransformPropertiesFromLayoutGroup()
@@ -180,5 +194,19 @@ public class CardController : MonoBehaviour
     public void ToggleBlockRaycasts(bool toggle)
     {
         dragHandler.SetBlockRaycasts(toggle);
+    }
+
+    public void ToggleInteraction(bool toggle)
+    {
+        dragHandler.enabled = toggle;
+        raiseHandler.enabled = toggle;
+    }
+
+    public void DestroyInteractiveComponents()
+    {
+        Destroy(dragHandler);
+        Destroy(raiseHandler);
+        dragHandler = null;
+        raiseHandler = null;
     }
 }

@@ -2,12 +2,12 @@
 using System;
 using System.Linq;
 using System.Collections;
+using System.Collections.Generic;
 
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using Boo.Lang;
 
 public class GameManager : MonoBehaviour
 {
@@ -44,7 +44,17 @@ public class GameManager : MonoBehaviour
     private Button playAgainButton;
 
     public bool IsFaceUpPileEmpty => dealer.TopCard == null;
+ 
+    [SerializeField]
     private List<Card> pendingCards = new List<Card>();
+
+    [SerializeField]
+    private Button startGameButton;
+
+    [SerializeField]
+    private GameObject lobbyPanel;
+
+    public FaceUpPile faceUpPile;
 
     private void Awake()
     {
@@ -64,11 +74,15 @@ public class GameManager : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(this);
+
     }
 
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= SceneManager_sceneLoaded;
+
+        playAgainButton.onClick.RemoveListener(OnGameReset);
+        startGameButton.onClick.RemoveListener(OnGameStart);
     }
 
     private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
@@ -91,10 +105,22 @@ public class GameManager : MonoBehaviour
         drawPileCountText = GameObject.Find("DrawPileCountLabel")?.GetComponent<Text>();
 
         playAgainPanel.gameObject.SetActive(false);
-
         playAgainButton.onClick.AddListener(OnGameReset);
 
+        lobbyPanel.SetActive(true);
+        startGameButton.onClick.AddListener(OnGameStart);
+    }
 
+    private void OnGameReset()
+    {
+        if(currentState == GameState.GAME_END)
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+    }
+
+    private void OnGameStart()
+    {
 #if UNITY_WEBGL
         StartCoroutine(FetchJsonConfigs((configs) =>
         {
@@ -107,19 +133,12 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
-    private void OnGameReset()
-    {
-        if(currentState == GameState.GAME_END)
-        {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
-    }
-
     public void Init()
     {
         Utils.LoadCardAssets();
         Utils.LoadAvatarAssets();
         currentState = GameState.GAME_LAUNCH;
+        faceUpPile = FindObjectOfType<FaceUpPile>();
     }
 
     public void VerifyConfirmedSelection()
@@ -175,6 +194,7 @@ public class GameManager : MonoBehaviour
         }
 
         pendingCards.Add(card);
+        player.MoveToFaceUpPilePending(card, faceUpPile.transform);
 
         // Combo
         if(pendingCards.Count > 1)
@@ -207,7 +227,6 @@ public class GameManager : MonoBehaviour
                 pendingCards.Clear();
             }
         }
-
     }
 
     public bool TryAddCardToFaceUpPile(Card card)
@@ -288,8 +307,9 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        lobbyPanel.SetActive(false);
+
         currentState = GameState.GAME_IN_PROGRESS;
-        Debug.Log("starting game");
 
         player.DisableControls();
         dealer.PrepareDeck();
@@ -343,8 +363,9 @@ public class GameManager : MonoBehaviour
             player.myCards.Add((Card)newCard);
             player.OnCardAdded((Card)newCard);
             playerPanel.SetCardsLeft(player.myCards.Count);
-            drawPileCountText.text = dealer.DrawPileCount.ToString();
         }
+
+        drawPileCountText.text = dealer.DrawPileCount.ToString();
     }
 
     public void StartTurn()

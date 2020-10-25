@@ -8,30 +8,39 @@ using UnityEngine.UI;
 public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     private CanvasGroup canvasGroup;
+    private LayoutElement layoutElement;
     private CardController controller;
     private Transform canvas;
 
     public bool isDragging = false;
 
     private GameObject cardPlaceholder;
+    [SerializeField]
+    private GameObject cardPlaceholderTemplate;
+
+    private RaiseHandler raiseHandler;
 
     private void Awake()
     {
         canvasGroup = GetComponent<CanvasGroup>();
         controller = GetComponent<CardController>();
         canvas = GameObject.Find("Canvas")?.transform;
+        raiseHandler = GetComponent<RaiseHandler>();
+        layoutElement = GetComponent<LayoutElement>();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         transform.SetParent(canvas);
+        // Allows rayCast for the mouse to hit other gameobjects
         canvasGroup.blocksRaycasts = false;
-        cardPlaceholder = new GameObject("cardPlaceholder");
-        LayoutElement layoutElement = cardPlaceholder.AddComponent<LayoutElement>();
-        layoutElement.preferredWidth = GetComponent<LayoutElement>().preferredWidth;
-        layoutElement.preferredHeight = GetComponent<LayoutElement>().preferredHeight;
+        // Stops card from flickering while dragging
+        layoutElement.ignoreLayout = true;
+
+        cardPlaceholder = Instantiate(cardPlaceholderTemplate);
         cardPlaceholder.transform.SetParent(controller.OriginalParent);
         cardPlaceholder.transform.SetSiblingIndex(controller.OriginalSiblingIndex);
+        cardPlaceholder.transform.localScale = Vector3.one;
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -65,6 +74,9 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     {
         isDragging = false;
         canvasGroup.blocksRaycasts = true;
+
+        raiseHandler.enabled = true;
+
         if(!controller.isPlacedOnTable)
         {
             // Side effect.. destroys cardPlaceholder
@@ -73,6 +85,7 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         else
         {
             Destroy(cardPlaceholder);
+            cardPlaceholder = null;
         }
     }
 

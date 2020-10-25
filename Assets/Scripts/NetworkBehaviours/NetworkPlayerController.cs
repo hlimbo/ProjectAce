@@ -173,8 +173,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         }
     }
 
-    // need to make a syncvar boolean named isSwapping so that the card animations don't get played out
-    // need to revisit quill18creates to figure out how to reorder cards
     private void OnClientMyCardsUpdated(SyncListCards.Operation op, int index, Card oldCard, Card newCard)
     {
         CmdUpdateNumberOfCardsLeft(connectionId, myCards.Count);
@@ -182,15 +180,18 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         {
             Debug.Log("Addding card: " + newCard);
             GameObject myNewCard = Instantiate(cardPrefab, cardHandGroup, false);
-            Debug.Log("PARENT TRANSFORM: " + myNewCard.transform.parent);
             myNewCard.transform.localScale = new Vector3(1f, 1f, 1f);
-
-            Debug.Log("Card's Parent: " + myNewCard.transform.parent);
 
             var newCardController = myNewCard.GetComponent<CardController>();
             if (newCardController != null)
             {
                 hand.Add(newCardController);
+            }
+
+            // Disable Card Behaviour since it will be in the middle of animation
+            foreach (var c in hand)
+            {
+                c.ToggleInteraction(false);
             }
 
             // edge case: when there is only 1 player connected to the server and is actively playing
@@ -284,7 +285,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
                 var myColor = myNewCard.GetComponent<Image>().color;
                 myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 1f);
                 cardController.Initialize(this, newCard);
-                cardController.ToggleDragHandlerBehaviour(true);
                 Destroy(placeholder);
             });
 
@@ -299,6 +299,11 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         {
             CmdCheckForTurn();
             isReceivingInitialHand = false;
+        }
+
+        foreach (var c in hand)
+        {
+            c.ToggleInteraction(true);
         }
     }
 
@@ -354,8 +359,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             return;
         }
 
-        cardToRemove.ToggleRaiseHandlerBehaviour(false);
         cardToRemove.MoveToTargetPosition(faceUpHolder, rotations[animIndex]);
+        cardToRemove.DestroyInteractiveComponents();
         audioManager.PlayClip("cardPlacedOnTable");
 
         hand.Remove(cardToRemove);
@@ -428,8 +433,7 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         Stack<GameObject> removals = new Stack<GameObject>();
         foreach (var c in cardSelectorsToRemove)
         {
-            c.ToggleRaiseHandlerBehaviour(false);
-            c.ToggleDragHandlerBehaviour(false);
+            c.DestroyInteractiveComponents();
             hand.Remove(c);
             removals.Push(c.gameObject);
         }

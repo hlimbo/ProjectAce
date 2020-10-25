@@ -50,7 +50,10 @@ public class Hand : HorizontalLayoutGroup
         cards = transform.GetComponentsInChildren<CardController>();
         foreach(var card in cards)
         {
-            card.SetLocalTransformPropertiesFromLayoutGroup();
+            if(!card.GetComponent<LayoutElement>().ignoreLayout)
+            {
+                card.SetLocalTransformPropertiesFromLayoutGroup();
+            }
         }
     }
 }
