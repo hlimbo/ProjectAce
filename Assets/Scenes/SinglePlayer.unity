@@ -4881,9 +4881,8 @@ MonoBehaviour:
     card from your hand to the face-up pile.\n\n2. Players must match the top card's
     suit or value.\n\n3. The player can play a combo where 2 or more cards must add
     up to the top card's value. All cards played in the combo must be of all the
-    same suit. \n\n4. The Combo Button will appear when 2 or more cards are raised.
-    Pressing the button will automatically move all raised cards from your hand into
-    the face up pile."
+    same suit. \n\n4. To play a combo, drag and drop 2 or more cards on top of the
+    face up pile and hit Confirm Selection button when finished."
 --- !u!222 &1802820055
 CanvasRenderer:
   m_ObjectHideFlags: 0

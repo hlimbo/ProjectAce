@@ -230,7 +230,7 @@ public class CardController : MonoBehaviour
     public void ReorderCard()
     {
         float distance = transform.position.y - cardPlaceholder.transform.position.y;
-        if (distance <= 90f)
+        if (distance <= 150f)
         {
             int newSiblingIndex = OriginalParent.childCount;
             for (int i = 0; i < OriginalParent.childCount; ++i)

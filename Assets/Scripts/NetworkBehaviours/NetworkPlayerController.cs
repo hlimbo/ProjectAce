@@ -240,6 +240,16 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
     private IEnumerator DrawCardsRoutine()
     {
+        // Assumption: The hand should have an array of cards already populated by now
+        if(isReceivingInitialHand)
+        {
+            // Disable Card Behaviour since it will be in the middle of animation
+            foreach (var c in hand)
+            {
+                c.ToggleInteraction(false);
+            }
+        }
+
         // Recalculate all child elements within the parent container and wait until end of frame 
         // for layout to rebuild all child element positions
         LayoutRebuilder.MarkLayoutForRebuild(cardHandGroup.GetComponent<RectTransform>());
@@ -477,11 +487,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetPlayerReceivesInitialHand(NetworkConnection clientConnection)
     {
         isReceivingInitialHand = true;
-        // Disable Card Behaviour since it will be in the middle of animation
-        foreach (var c in hand)
-        {
-            c.ToggleInteraction(false);
-        }
     }
 
     [TargetRpc]
