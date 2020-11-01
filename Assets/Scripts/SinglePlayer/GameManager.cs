@@ -50,6 +50,8 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     private Button startGameButton;
+    [SerializeField]
+    private Button exitGameButton;
 
     [SerializeField]
     private GameObject lobbyPanel;
@@ -83,6 +85,7 @@ public class GameManager : MonoBehaviour
 
         playAgainButton.onClick.RemoveListener(OnGameReset);
         startGameButton.onClick.RemoveListener(OnGameStart);
+        exitGameButton.onClick.RemoveListener(OnGameExit);
     }
 
     private void SceneManager_sceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
@@ -109,6 +112,7 @@ public class GameManager : MonoBehaviour
 
         lobbyPanel.SetActive(true);
         startGameButton.onClick.AddListener(OnGameStart);
+        exitGameButton.onClick.AddListener(OnGameExit);
     }
 
     private void OnGameReset()
@@ -131,6 +135,11 @@ public class GameManager : MonoBehaviour
 #else
         StartGame();
 #endif
+    }
+
+    private void OnGameExit()
+    {
+        SceneManager.LoadScene("MainMenu");
     }
 
     public void Init()

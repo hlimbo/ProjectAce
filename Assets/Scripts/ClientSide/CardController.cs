@@ -1,12 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using ProjectAce;
+﻿using ProjectAce;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using System.Linq;
-using Mirror;
-using UnityEditor.Rendering.LookDev;
 
 public class CardController : MonoBehaviour
 {
