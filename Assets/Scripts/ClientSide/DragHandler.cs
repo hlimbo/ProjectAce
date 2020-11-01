@@ -32,14 +32,12 @@ public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         // Stops card from flickering while dragging
         layoutElement.ignoreLayout = true;
 
-        if(controller.CardPlaceholder == null)
-        {
-            controller.InitPlaceholder();
-        }
+        controller.InitPlaceholder();
     }
 
     public void OnDrag(PointerEventData eventData)
     {
+        transform.SetParent(canvas);
         isDragging = true;
         transform.position = eventData.position;
         controller.ReorderCard();

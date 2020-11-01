@@ -176,6 +176,8 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
             var newCardController = myNewCard.GetComponent<CardController>();
             if (newCardController != null)
             {
+                Debug.Log("Disabling card interaction");
+                newCardController.ToggleInteraction(false);
                 hand.Add(newCardController);
             }
 
@@ -220,7 +222,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
         if (op == SyncListCards.Operation.OP_ADD)
         {
-            //Debug.Log("OnClientOpponentCardsUpdated adding Card: " + newCard);
             cardMat.GetComponent<OpponentCardMat>()?.SpawnCard();
         }
         else if (op == SyncListCards.Operation.OP_REMOVEAT)
@@ -240,27 +241,19 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
 
     private IEnumerator DrawCardsRoutine()
     {
-        // Assumption: The hand should have an array of cards already populated by now
-        if(isReceivingInitialHand)
-        {
-            // Disable Card Behaviour since it will be in the middle of animation
-            foreach (var c in hand)
-            {
-                c.ToggleInteraction(false);
-            }
-        }
-
         // Recalculate all child elements within the parent container and wait until end of frame 
         // for layout to rebuild all child element positions
         LayoutRebuilder.MarkLayoutForRebuild(cardHandGroup.GetComponent<RectTransform>());
         yield return new WaitForEndOfFrame();
 
+        var recentlyAddedCards = new Stack<CardController>();
         while (cardsToDraw.Count > 0)
         {
             var placeholder = placeholders.Dequeue();
             var myNewCard = cardsToDraw.Dequeue();
             var newCard = cardValuesToDraw.Dequeue();
             var cardController = myNewCard.GetComponent<CardController>();
+            recentlyAddedCards.Push(cardController);
 
             placeholder.GetComponent<LayoutElement>().ignoreLayout = true;
             placeholder.transform.SetParent(drawPileGraphic);
@@ -280,6 +273,12 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
                 var myColor = myNewCard.GetComponent<Image>().color;
                 myNewCard.GetComponent<Image>().color = new Color(myColor.r, myColor.g, myColor.b, 1f);
                 cardController.Initialize(this, newCard);
+
+                if (!isReceivingInitialHand)
+                {
+                    cardController.ToggleInteraction(true);
+                }
+
                 Destroy(placeholder);
             });
 
@@ -294,10 +293,11 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
         {
             CmdCheckForTurn();
             isReceivingInitialHand = false;
-            
-            foreach (var c in hand)
+            while (recentlyAddedCards.Count > 0)
             {
-                c.ToggleInteraction(true);
+                Debug.Log("Enabling card");
+                var cardController = recentlyAddedCards.Pop();
+                cardController.ToggleInteraction(true);
             }
         }
     }
@@ -493,12 +493,6 @@ public class NetworkPlayerController : NetworkBehaviour, IPlayerController
     public void TargetEnableControls(NetworkConnection clientConnection)
     {
         endTurnButton.SetActive(true);
-
-        foreach(var card in hand)
-        {
-            card.ToggleDragHandlerBehaviour(true);
-        }
-
         audioManager.PlayClip("turnNotification");
     }
 

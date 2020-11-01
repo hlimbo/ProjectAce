@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using DG.Tweening;
 using System.Linq;
 using Mirror;
+using UnityEditor.Rendering.LookDev;
 
 public class CardController : MonoBehaviour
 {
@@ -17,6 +18,7 @@ public class CardController : MonoBehaviour
 
     private IPlayerController owner;
     private RectTransform rectTransform;
+    private LayoutElement layoutElement;
 
     public bool IsDragging => dragHandler != null && dragHandler.isDragging;
 
@@ -57,6 +59,8 @@ public class CardController : MonoBehaviour
     [SerializeField]
     private GameObject cardPlaceholderTemplate;
 
+    private Transform playerCardMat;
+
     private void Awake()
     {
         dragHandler = GetComponent<DragHandler>();
@@ -64,6 +68,9 @@ public class CardController : MonoBehaviour
         cardImage = GetComponent<Image>();
         rotationAngles = new Vector3(0f, 0f, 0f);
         rectTransform = GetComponent<RectTransform>();
+        layoutElement = GetComponent<LayoutElement>();
+
+        playerCardMat = GameObject.Find("PlayerCardMat")?.transform;
     }
 
     public void Initialize(IPlayerController player, Card card)
@@ -97,10 +104,13 @@ public class CardController : MonoBehaviour
         isDoneMovingBack = false;
         dragHandler.SetBlockRaycasts(true);
         raiseHandler.enabled = false;
-        transform.GetComponent<LayoutElement>().ignoreLayout = true;
+        layoutElement.ignoreLayout = true;
 
-        originalSiblingIndex = cardPlaceholder.transform.GetSiblingIndex();
-        originalLocalPosition = cardPlaceholder.transform.localPosition;
+        if(cardPlaceholder != null)
+        {
+            originalSiblingIndex = cardPlaceholder.transform.GetSiblingIndex();
+            originalLocalPosition = cardPlaceholder.transform.localPosition;
+        }
 
         transform.SetParent(originalParent);
         transform.SetSiblingIndex(originalSiblingIndex);
@@ -108,15 +118,13 @@ public class CardController : MonoBehaviour
 
         tweenMover.OnComplete(() =>
         {
-            transform.GetComponent<LayoutElement>().ignoreLayout = false;
+            layoutElement.ignoreLayout = false;
             isDoneMovingBack = true;
-            raiseHandler.enabled = true;
+            dragHandler.isDragging = false;
+            isPlacedOnTable = false;
+            ToggleInteraction(true);
             DestroyPlaceholder();
         });
-
-        dragHandler.enabled = true;
-        dragHandler.isDragging = false;
-        isPlacedOnTable = false;
     }
 
     public void MoveBackToOriginalLocalPosition()
@@ -161,16 +169,8 @@ public class CardController : MonoBehaviour
         isPlacedOnTable = false;
     }
 
-    public void ResetCard()
-    {
-        isDoneMovingBack = true;
-        dragHandler.SetBlockRaycasts(true);
-    }
-
     public void MoveToTargetPosition(Transform parent, float targetRotation)
     {
-        Debug.Log("MoveToTargetPos");
-
         isPlacedOnTable = true;
         rotationAngles.z = targetRotation;
         Quaternion rotation = Quaternion.Euler(rotationAngles);
@@ -213,10 +213,13 @@ public class CardController : MonoBehaviour
 
     public void InitPlaceholder()
     {
-        cardPlaceholder = Instantiate(cardPlaceholderTemplate);
-        cardPlaceholder.transform.SetParent(OriginalParent);
-        cardPlaceholder.transform.SetSiblingIndex(OriginalSiblingIndex);
-        cardPlaceholder.transform.localScale = Vector3.one;
+        if(cardPlaceholder == null)
+        {
+            cardPlaceholder = Instantiate(cardPlaceholderTemplate);
+            cardPlaceholder.transform.SetParent(OriginalParent);
+            cardPlaceholder.transform.SetSiblingIndex(OriginalSiblingIndex);
+            cardPlaceholder.transform.localScale = Vector3.one;
+        }
     }
 
     public void DestroyPlaceholder()
@@ -224,6 +227,17 @@ public class CardController : MonoBehaviour
         if(cardPlaceholder != null)
         {
             Destroy(cardPlaceholder);
+            cardPlaceholder = null;
+        }
+    }
+
+    public void ResetPosition()
+    {
+        if(cardPlaceholder != null)
+        {
+            originalSiblingIndex = cardPlaceholder.transform.GetSiblingIndex();
+            transform.SetParent(OriginalParent);
+            transform.SetSiblingIndex(originalSiblingIndex);
         }
     }
 
@@ -249,5 +263,16 @@ public class CardController : MonoBehaviour
 
             cardPlaceholder.transform.SetSiblingIndex(newSiblingIndex);
         }
+    }
+
+    public void ScaleCard()
+    {
+        transform.SetParent(playerCardMat);
+        rectTransform.localScale = new Vector3(1.5f, 1.5f, 1f);
+    }
+
+    public void UnScaleCard()
+    {
+        rectTransform.localScale = Vector3.one;
     }
 }

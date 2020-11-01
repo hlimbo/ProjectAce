@@ -260,9 +260,10 @@ public class PlayerPanel : NetworkBehaviour
     [ClientRpc]
     public void RpcDestroyTurnIndicator()
     {
-        if(turnIndicator != null)
+        if(turnIndicator != null && turnIndicator.gameObject != null)
         {
-            Destroy(turnIndicator);
+            Destroy(turnIndicator.gameObject);
+            turnIndicator = null;
         }
     }
 }

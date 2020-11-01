@@ -348,6 +348,7 @@ public class ProjectAceNetworkManager : NetworkManager
                             NetworkConnection nextClientConnection = NetworkServer.connections[nextClientTurnConnectionId];
                             networkPlayerControllers[nextClientTurnConnectionId].TargetEnableControls(nextClientConnection);
                             playerPanels[nextClientTurnConnectionId].StartCountdown();
+                            playerPanels[nextClientTurnConnectionId].TargetStartFadeSequence(nextClientConnection);
                         }
                     }
                 }
@@ -522,14 +523,11 @@ public class ProjectAceNetworkManager : NetworkManager
                 {
                     Card[] pendingCards = pendingCardsByConnectionId[endingTurnClientConnectionId].ToArray();
                     npc.TargetMovePendingCardsBack(NetworkServer.connections[endingTurnClientConnectionId], pendingCards);
+                    pendingCardsByConnectionId[endingTurnClientConnectionId].Clear();
+
                 }
                 npc.TargetDisableControls(NetworkServer.connections[endingTurnClientConnectionId]);
                 npc.CheckIfPlayerDrawsACard();
-            }
-
-            if(pendingCardsByConnectionId.ContainsKey(endingTurnClientConnectionId))
-            {
-                pendingCardsByConnectionId[endingTurnClientConnectionId].Clear();
             }
         }
 
