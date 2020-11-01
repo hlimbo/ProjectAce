@@ -37,6 +37,8 @@ public class PlayerPanel : NetworkBehaviour
 
     public AnchorPresets anchorPreset;
 
+    private TurnIndicator turnIndicator;
+
     [SyncVar]
     public int playerNumber;
 
@@ -110,6 +112,7 @@ public class PlayerPanel : NetworkBehaviour
 
         originalLabelColor = playerLabel.color;
 
+        turnIndicator = FindObjectOfType<TurnIndicator>();
     }
 
     public override void OnStartServer()
@@ -156,11 +159,12 @@ public class PlayerPanel : NetworkBehaviour
         StopAllCoroutines();
         RpcToggleTimerUI(true);
         RpcToggleHighlightPlayerLabel(true);
+        // TargetStartFadeSequence(clientConnection);
         StartCoroutine(CountdownRoutine(syncInterval));
     }
 
     [Server]
-    public void StopCountdown(int connectionId)
+    public void StopCountdown()
     {
         isMyTurn = false;
         RpcToggleTimerUI(false);
@@ -186,18 +190,18 @@ public class PlayerPanel : NetworkBehaviour
         while (timeLeft > 0)
         {
             // if somewhere else in the code sets isMyTurn to false... break out of this loop
-            if (!isMyTurn)
-            {
-                yield break;
-            }
+            //if (!isMyTurn)
+            //{
+            //    yield break;
+            //}
 
             // subtraction here accounts for delays that the client will receive the time to update the timer panel
-            yield return new WaitForSeconds(delta - .01f);
+            yield return new WaitForSeconds(delta);
             timeLeft -= delta;
         }
 
         timeLeft = 0f;
-        
+
         // Need this bit of logic so that the turn system can automatically go to the next
         // player's turn in the event the current player lets all X seconds elapse
         // otherwise game will not enable controls for the next player's turn
@@ -237,6 +241,28 @@ public class PlayerPanel : NetworkBehaviour
         {
             playerLabel.color = originalLabelColor;
             playerLabel.fontStyle = FontStyle.Normal;
+        }
+    }
+
+    [TargetRpc]
+    public void TargetStartFadeSequence(NetworkConnection clientConnection)
+    {
+        Debug.Log("TargetStart:");
+        Debug.Log("client connection id: " + clientConnection.connectionId);
+        Debug.Log("my connection id: " + connectionId);
+        if(turnIndicator != null && hasAuthority)
+        {
+            turnIndicator.RestartSequence();
+            turnIndicator.PlayFadeSequence();
+        }
+    }
+
+    [ClientRpc]
+    public void RpcDestroyTurnIndicator()
+    {
+        if(turnIndicator != null)
+        {
+            Destroy(turnIndicator);
         }
     }
 }

@@ -300,6 +300,7 @@ public class ProjectAceNetworkManager : NetworkManager
             drawPileCountText = GameObject.Find("DrawPileCountLabel")?.GetComponent<Text>();
             if (playAgainPanel == null)
             {
+                currentState = GameState.LOBBY;
                 playAgainPanel = FindObjectOfType<PlayAgainPanel>();
                 playAgainPanel?.RegisterClientSideListeners();
                 optionsPanel = playAgainPanel?.transform.Find("OptionsPanel")?.gameObject;
@@ -512,10 +513,9 @@ public class ProjectAceNetworkManager : NetworkManager
             int endingTurnClientConnectionId = turnOrder[currentTurnIndex];
             if (networkPlayerControllers.ContainsKey(endingTurnClientConnectionId))
             {
-                playerPanels[endingTurnClientConnectionId].StopCountdown(endingTurnClientConnectionId);
+                playerPanels[endingTurnClientConnectionId].StopCountdown();
                 
                 var npc = networkPlayerControllers[endingTurnClientConnectionId];
-                //npc.TargetMoveRaisedCardsDown(NetworkServer.connections[endingTurnClientConnectionId]);
                 
                 if(pendingCardsByConnectionId.ContainsKey(endingTurnClientConnectionId) && 
                     pendingCardsByConnectionId[endingTurnClientConnectionId].Count > 0)
@@ -538,8 +538,10 @@ public class ProjectAceNetworkManager : NetworkManager
         if(networkPlayerControllers.ContainsKey(nextTurnClientConnectionId))
         {
             Debug.Log("Next Turn connection id: " + nextTurnClientConnectionId);
-            networkPlayerControllers[nextTurnClientConnectionId].TargetEnableControls(NetworkServer.connections[nextTurnClientConnectionId]);
+            NetworkConnection nextClientConnection = NetworkServer.connections[nextTurnClientConnectionId];
+            networkPlayerControllers[nextTurnClientConnectionId].TargetEnableControls(nextClientConnection);
             playerPanels[nextTurnClientConnectionId].StartCountdown();
+            playerPanels[nextTurnClientConnectionId].TargetStartFadeSequence(nextClientConnection);
         }
     }
 
@@ -635,6 +637,7 @@ public class ProjectAceNetworkManager : NetworkManager
         if (turnOrder[currentTurnIndex] == connectionId)
         {
             networkPlayerControllers[connectionId].TargetEnableControls(playerConnection);
+            playerPanels[connectionId].TargetStartFadeSequence(playerConnection);
             playerPanels[connectionId].StartCountdown();
         }
         else
@@ -673,11 +676,11 @@ public class ProjectAceNetworkManager : NetworkManager
             foreach (var kvp in NetworkServer.connections)
             {
                 int connectionId = kvp.Key;
-                playerPanels[connectionId].StopCountdown(connectionId);
+                playerPanels[connectionId].StopCountdown();
+                playerPanels[connectionId].RpcDestroyTurnIndicator();
                 networkPlayerControllers[connectionId].TargetDisableControls(kvp.Value);
 
                 // Play winner/loser voiceover sound
-                
                 if (connectionId == clientConnectionId)
                 {
                     networkPlayerControllers[connectionId].TargetOnClientPlayGameOverSound(networkPlayerControllers[connectionId].connectionToClient, "winner");
@@ -841,7 +844,6 @@ public class ProjectAceNetworkManager : NetworkManager
             bool canAddCard = dealer.AddCardToFaceUpPile2(card);
             if (canAddCard)
             {
-                // Debug.Log("[SERVER]: CARD CAN BE PLAYED THIS TURN!!!!!! " + card);
                 npc.hasPlayedCardOrComboThisTurn = true;
                 npc.myCards.Remove(card);
                 npc.RpcRemoveOpponentCardFromHand(card, animIndex);
