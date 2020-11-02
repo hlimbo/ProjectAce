@@ -34,6 +34,8 @@ public class PlayerPanel : NetworkBehaviour
 
     private Image counterFx;
     private Sequence pulseSequence;
+    [SerializeField]
+    private float splashScale = 1.75f;
 
     public AnchorPresets anchorPreset;
 
@@ -96,7 +98,7 @@ public class PlayerPanel : NetworkBehaviour
     private void Awake()
     {
         playerLabel = transform.Find("PlayerName")?.GetComponent<Text>();
-        timeLeftCircle = transform.Find("Avatar/Counter")?.GetComponent<Image>();
+        timeLeftCircle = transform.Find("Counter")?.GetComponent<Image>();
         counterFx = transform.Find("CounterFX")?.GetComponent<Image>();
         avatarImage = transform.Find("Avatar/PlayerImage")?.GetComponent<Image>();
         cardsLeftText = transform.Find("CardsLeft/Text")?.GetComponent<Text>();
@@ -104,8 +106,8 @@ public class PlayerPanel : NetworkBehaviour
         uiCanvas = GameObject.Find("Canvas")?.transform;
 
         pulseSequence = DOTween.Sequence()
-            .Append(counterFx.transform.DOScaleX(1.25f, 1f))
-            .Join(counterFx.transform.DOScaleY(1.25f, 1f))
+            .Append(counterFx.transform.DOScaleX(splashScale, 1f))
+            .Join(counterFx.transform.DOScaleY(splashScale, 1f))
             .Join(counterFx.DOFade(0f, 1.5f))
             .SetLoops(-1, LoopType.Restart)
             .Pause();
