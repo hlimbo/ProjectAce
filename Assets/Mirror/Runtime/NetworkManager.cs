@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
+using kcp2k;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
@@ -21,7 +20,7 @@ namespace Mirror
 
     [DisallowMultipleComponent]
     [AddComponentMenu("Network/NetworkManager")]
-    [HelpURL("https://mirror-networking.com/docs/Components/NetworkManager.html")]
+    [HelpURL("https://mirror-networking.com/docs/Articles/Components/NetworkManager.html")]
     public class NetworkManager : MonoBehaviour
     {
         static readonly ILogger logger = LogFactory.GetLogger<NetworkManager>();
@@ -46,14 +45,11 @@ namespace Mirror
         /// <summary>
         /// Automatically invoke StartServer()
         /// <para>If the application is a Server Build, StartServer is automatically invoked.</para>
-        /// <para>Server build is true when "Server build" is checked in build menu, or BuildOptions.EnableHeadlessMode flag is in BuildOptions</para>	
+        /// <para>Server build is true when "Server build" is checked in build menu, or BuildOptions.EnableHeadlessMode flag is in BuildOptions</para>
         /// </summary>
         [Tooltip("Should the server auto-start when 'Server Build' is checked in build settings")]
         [FormerlySerializedAs("startOnHeadless")]
         public bool autoStartServerBuild = true;
-
-        [Obsolete("Use autoStartServerBuild instead.")]
-        public bool startOnHeadless { get => autoStartServerBuild; set => autoStartServerBuild = value; }
 
         /// <summary>
         /// Enables verbose debug messages in the console
@@ -187,12 +183,6 @@ namespace Mirror
         [NonSerialized]
         public bool clientLoadedScene;
 
-        /// <summary>
-        /// headless mode detection
-        /// </summary>
-        [Obsolete("Use #if UNITY_SERVER instead.")]
-        public static bool isHeadless => SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null;
-
         // helper enum to know if we started the networkmanager as server/client/host.
         // -> this is necessary because when StartHost changes server scene to
         //    online scene, FinishLoadScene is called and the host client isn't
@@ -215,7 +205,7 @@ namespace Mirror
                 transport = GetComponent<Transport>();
                 if (transport == null)
                 {
-                    transport = gameObject.AddComponent<TelepathyTransport>();
+                    transport = gameObject.AddComponent<KcpTransport>();
                     logger.Log("NetworkManager: added default Transport because there was none yet.");
                 }
 #if UNITY_EDITOR
@@ -346,6 +336,12 @@ namespace Mirror
         /// </summary>
         public void StartServer()
         {
+            if (NetworkServer.active)
+            {
+                logger.LogWarning("Server already started.");
+                return;
+            }
+
             mode = NetworkManagerMode.ServerOnly;
 
             // StartServer is inherently ASYNCHRONOUS (=doesn't finish immediately)
@@ -384,6 +380,12 @@ namespace Mirror
         /// </summary>
         public void StartClient()
         {
+            if (NetworkClient.active)
+            {
+                logger.LogWarning("Client already started.");
+                return;
+            }
+
             mode = NetworkManagerMode.ClientOnly;
 
             InitializeSingleton();
@@ -420,6 +422,12 @@ namespace Mirror
         /// <param name="uri">location of the server to connect to</param>
         public void StartClient(Uri uri)
         {
+            if (NetworkClient.active)
+            {
+                logger.LogWarning("Client already started.");
+                return;
+            }
+
             mode = NetworkManagerMode.ClientOnly;
 
             InitializeSingleton();
@@ -453,6 +461,12 @@ namespace Mirror
         /// </summary>
         public void StartHost()
         {
+            if (NetworkServer.active || NetworkClient.active)
+            {
+                logger.LogWarning("Server or Client already started.");
+                return;
+            }
+
             mode = NetworkManagerMode.Host;
 
             // StartHost is inherently ASYNCHRONOUS (=doesn't finish immediately)
@@ -600,7 +614,10 @@ namespace Mirror
                 return;
 
             if (authenticator != null)
+            {
                 authenticator.OnServerAuthenticated.RemoveListener(OnServerAuthenticated);
+                authenticator.OnStopServer();
+            }
 
             OnStopServer();
 
@@ -628,7 +645,10 @@ namespace Mirror
         public void StopClient()
         {
             if (authenticator != null)
+            {
                 authenticator.OnClientAuthenticated.RemoveListener(OnClientAuthenticated);
+                authenticator.OnStopClient();
+            }
 
             OnStopClient();
 
@@ -803,7 +823,7 @@ namespace Mirror
 
         /// <summary>
         /// This causes the server to switch scenes and sets the networkSceneName.
-        /// <para>Clients that connect to this server will automatically switch to this scene. This is called autmatically if onlineScene or offlineScene are set, but it can be called from user code to switch scenes again while the game is in progress. This automatically sets clients to be not-ready. The clients must call NetworkClient.Ready() again to participate in the new scene.</para>
+        /// <para>Clients that connect to this server will automatically switch to this scene. This is called autmatically if onlineScene or offlineScene are set, but it can be called from user code to switch scenes again while the game is in progress. This automatically sets clients to be not-ready during the change and ready again to participate in the new scene.</para>
         /// </summary>
         /// <param name="newSceneName"></param>
         public virtual void ServerChangeScene(string newSceneName)
@@ -1200,13 +1220,6 @@ namespace Mirror
             OnServerAddPlayer(conn);
         }
 
-        // Deprecated 5/2/2020
-        /// <summary>
-        /// Obsolete: Removed as a security risk. Use <see cref="NetworkServer.RemovePlayerForConnection(NetworkConnection, bool)">NetworkServer.RemovePlayerForConnection</see> instead.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Removed as a security risk. Use NetworkServer.RemovePlayerForConnection(NetworkConnection conn, bool keepAuthority = false) instead", true)]
-        void OnServerRemovePlayerMessageInternal(NetworkConnection conn, RemovePlayerMessage msg) { }
-
         void OnServerErrorInternal(NetworkConnection conn, ErrorMessage msg)
         {
             logger.Log("NetworkManager.OnServerErrorInternal");
@@ -1339,13 +1352,6 @@ namespace Mirror
             NetworkServer.AddPlayerForConnection(conn, player);
         }
 
-        // Deprecated 5/2/2020
-        /// <summary>
-        /// Obsolete: Removed as a security risk. Use <see cref="NetworkServer.RemovePlayerForConnection(NetworkConnection, bool)">NetworkServer.RemovePlayerForConnection</see> instead.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Removed as a security risk. Use NetworkServer.RemovePlayerForConnection(NetworkConnection conn, bool keepAuthority = false) instead", true)]
-        public virtual void OnServerRemovePlayer(NetworkConnection conn, NetworkIdentity player) { }
-
         /// <summary>
         /// Called on the server when a network error occurs for a client connection.
         /// </summary>
@@ -1414,16 +1420,6 @@ namespace Mirror
         /// </summary>
         /// <param name="conn">Connection to the server.</param>
         public virtual void OnClientNotReady(NetworkConnection conn) { }
-
-        // Deprecated 12/22/2019
-        /// <summary>
-        /// Obsolete: Use <see cref="OnClientChangeScene(string, SceneOperation, bool)">OnClientChangeScene(string, SceneOperation, bool)</see> instead.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Override OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling) instead", true)]
-        public virtual void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation)
-        {
-            OnClientChangeScene(newSceneName, sceneOperation, false);
-        }
 
         /// <summary>
         /// Called from ClientChangeScene immediately before SceneManager.LoadSceneAsync is executed

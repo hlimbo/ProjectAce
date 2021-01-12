@@ -6,12 +6,12 @@ using System.Collections.Generic;
 // check maxNumber of connections here
 public class ScoreCounterNetworkManager : NetworkManager
 {
-    public class ScorePoolMessage : MessageBase
+    public struct ScorePoolMessage : NetworkMessage
     {
         public int scorePool;
     }
 
-    public class FullServerMessage : MessageBase
+    public struct FullServerMessage : NetworkMessage
     {
         public int maxConnectionCount;
     }

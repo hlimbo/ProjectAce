@@ -2,12 +2,12 @@
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Mirror;
+using Mirror.SimpleWeb;
 using System.Collections;
 using System.Collections.Generic;
 using ProjectAce;
 using ProjectAce.CustomNetworkMessages;
 using System.Linq;
-using Mirror.Websocket;
 
 public class ProjectAceNetworkManager : NetworkManager
 {
@@ -94,12 +94,10 @@ public class ProjectAceNetworkManager : NetworkManager
         Utils.LoadAvatarAssets();
         currentState = GameState.GAME_LAUNCH;
 
-        if(isHeadless)
-        {
+#if UNITY_SERVER
             Debug.Log("[Headless Mode]: Starting Server");
             InitServerPorts();
-        }
-
+#endif
         SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
     }
 
@@ -416,12 +414,14 @@ public class ProjectAceNetworkManager : NetworkManager
         }
 
         // Reset game
-        if (isHeadless && networkPlayerControllers.Count == 0)
+#if UNITY_SERVER
+        if (networkPlayerControllers.Count == 0)
         {
             currentState = GameState.GAME_END;
             playerNames.Clear();
             ServerChangeScene(onlineScene);
         }
+#endif
 
         base.OnServerDisconnect(conn);
     }
@@ -692,7 +692,7 @@ public class ProjectAceNetworkManager : NetworkManager
         }
     }
 
-    #region Methods used to evaluate if Card or Cards can be placed on Face Up Pile
+#region Methods used to evaluate if Card or Cards can be placed on Face Up Pile
     public void VerifyConfirmedSelection(int clientConnectionId)
     {
         if(pendingCardsByConnectionId.ContainsKey(clientConnectionId))
@@ -908,7 +908,7 @@ public class ProjectAceNetworkManager : NetworkManager
 
         return isComboValid;
     }
-    #endregion
+#endregion
 
     public void Disconnect()
     {
@@ -961,11 +961,13 @@ public class ProjectAceNetworkManager : NetworkManager
         
         if(networkPlayerControllers.Count == 0)
         {
-            if (isHeadless && SceneManager.GetActiveScene().path.Equals(offlineScene))
+#if UNITY_SERVER
+            if (SceneManager.GetActiveScene().path.Equals(offlineScene))
             {
                 Debug.LogFormat("[Server]: Changing Scenes to: {0}", onlineScene);
                 ServerChangeScene(onlineScene);
             }
+#endif
         }
     }
 
@@ -973,8 +975,8 @@ public class ProjectAceNetworkManager : NetworkManager
     {
         serverConfigs = ServerConfigs.GenerateConfigs();
         var tcpTransport = GetComponent<TelepathyTransport>();
-        var websocketTransport = GetComponent<WebsocketTransport>();
+        var websocketTransport = GetComponent<SimpleWebTransport>();
         tcpTransport.port = serverConfigs.tcpPort;
-        websocketTransport.port = serverConfigs.websocketPort;
+        websocketTransport.port = (ushort)serverConfigs.websocketPort;
     }
 }

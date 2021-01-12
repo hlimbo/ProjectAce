@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 public class Scores : MonoBehaviour
 {
-    public class ScoreMessage : MessageBase
+    public struct ScoreMessage : NetworkMessage
     {
         public int score;
         public int lives;

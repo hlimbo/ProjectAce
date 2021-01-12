@@ -15,7 +15,7 @@ namespace Mirror
     /// </remarks>
     [AddComponentMenu("Network/NetworkAnimator")]
     [RequireComponent(typeof(NetworkIdentity))]
-    [HelpURL("https://mirror-networking.com/docs/Components/NetworkAnimator.html")]
+    [HelpURL("https://mirror-networking.com/docs/Articles/Components/NetworkAnimator.html")]
     public class NetworkAnimator : NetworkBehaviour
     {
         static readonly ILogger logger = LogFactory.GetLogger(typeof(NetworkAnimator));
@@ -31,6 +31,14 @@ namespace Mirror
         [Header("Animator")]
         [Tooltip("Animator that will have parameters synchronized")]
         public Animator animator;
+
+
+        /// <summary>
+        /// Syncs animator.speed
+        /// </summary>
+        [SyncVar(hook = nameof(onAnimatorSpeedChanged))]
+        float animatorSpeed;
+        float previousSpeed;
 
         // Note: not an object[] array because otherwise initialization is real annoying
         int[] lastIntParameters;
@@ -107,6 +115,42 @@ namespace Mirror
                     SendAnimationMessage(stateHash, normalizedTime, i, layerWeight[i], writer.ToArray());
                 }
             }
+
+            CheckSpeed();
+        }
+
+        void CheckSpeed()
+        {
+            float newSpeed = animator.speed;
+            if (Mathf.Abs(previousSpeed - newSpeed) > 0.001f)
+            {
+                previousSpeed = newSpeed;
+                if (isServer)
+                {
+                    animatorSpeed = newSpeed;
+                }
+                else if (ClientScene.readyConnection != null)
+                {
+                    CmdSetAnimatorSpeed(newSpeed);
+                }
+            }
+        }
+
+        void CmdSetAnimatorSpeed(float newSpeed)
+        {
+            // set animator
+            animator.speed = newSpeed;
+            animatorSpeed = newSpeed;
+        }
+
+        void onAnimatorSpeedChanged(float _, float value)
+        {
+            // skip if host or client with authoity
+            // they will have already set the speed so dont set again
+            if (isServer || (hasAuthority && clientAuthority))
+                return;
+
+            animator.speed = value;
         }
 
         bool CheckAnimStateChanged(out int stateHash, out float normalizedTime, int layerId)
@@ -269,7 +313,7 @@ namespace Mirror
         bool WriteParameters(NetworkWriter writer, bool forceAll = false)
         {
             ulong dirtyBits = forceAll ? (~0ul) : NextDirtyBits();
-            writer.WritePackedUInt64(dirtyBits);
+            writer.WriteUInt64(dirtyBits);
             for (int i = 0; i < parameters.Length; i++)
             {
                 if ((dirtyBits & (1ul << i)) == 0)
@@ -279,7 +323,7 @@ namespace Mirror
                 if (par.type == AnimatorControllerParameterType.Int)
                 {
                     int newIntValue = animator.GetInteger(par.nameHash);
-                    writer.WritePackedInt32(newIntValue);
+                    writer.WriteInt32(newIntValue);
                 }
                 else if (par.type == AnimatorControllerParameterType.Float)
                 {
@@ -300,7 +344,7 @@ namespace Mirror
             bool animatorEnabled = animator.enabled;
             // need to read values from NetworkReader even if animator is disabled
 
-            ulong dirtyBits = reader.ReadPackedUInt64();
+            ulong dirtyBits = reader.ReadUInt64();
             for (int i = 0; i < parameters.Length; i++)
             {
                 if ((dirtyBits & (1ul << i)) == 0)
@@ -309,7 +353,7 @@ namespace Mirror
                 AnimatorControllerParameter par = parameters[i];
                 if (par.type == AnimatorControllerParameterType.Int)
                 {
-                    int newIntValue = reader.ReadPackedInt32();
+                    int newIntValue = reader.ReadInt32();
                     if (animatorEnabled)
                         animator.SetInteger(par.nameHash, newIntValue);
                 }
@@ -336,6 +380,7 @@ namespace Mirror
         /// <returns></returns>
         public override bool OnSerialize(NetworkWriter writer, bool initialState)
         {
+            bool changed = base.OnSerialize(writer, initialState);
             if (initialState)
             {
                 for (int i = 0; i < animator.layerCount; i++)
@@ -357,7 +402,7 @@ namespace Mirror
                 WriteParameters(writer, initialState);
                 return true;
             }
-            return false;
+            return changed;
         }
 
         /// <summary>
@@ -367,6 +412,7 @@ namespace Mirror
         /// <param name="initialState"></param>
         public override void OnDeserialize(NetworkReader reader, bool initialState)
         {
+            base.OnDeserialize(reader, initialState);
             if (initialState)
             {
                 for (int i = 0; i < animator.layerCount; i++)
@@ -522,8 +568,12 @@ namespace Mirror
 
             // handle and broadcast
             // host should have already the trigger
-            if (!isClient)
+            bool isHostOwner = isClient && hasAuthority;
+            if (!isHostOwner)
+            {
                 HandleAnimTriggerMsg(hash);
+            }
+
             RpcOnAnimationTriggerClientMessage(hash);
         }
 
@@ -536,8 +586,12 @@ namespace Mirror
 
             // handle and broadcast
             // host should have already the trigger
-            if (!isClient)
+            bool isHostOwner = isClient && hasAuthority;
+            if (!isHostOwner)
+            {
                 HandleAnimResetTriggerMsg(hash);
+            }
+
             RpcOnAnimationResetTriggerClientMessage(hash);
         }
 

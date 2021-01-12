@@ -2,7 +2,8 @@
 
 namespace ProjectAce.CustomNetworkMessages
 {
-    public class DrawPileMessage : MessageBase
+    // See: https://github.com/vis2k/Mirror/pull/2317
+    public struct DrawPileMessage : NetworkMessage
     {
         public int cardsLeft;
     }

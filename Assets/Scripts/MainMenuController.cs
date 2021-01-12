@@ -1,9 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
-using Mirror.Websocket;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+using Mirror.SimpleWeb;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -196,8 +196,8 @@ public class MainMenuController : MonoBehaviour
 #endif
 
 #if UNITY_WEBGL
-        var websocketTransport = manager?.GetComponent<WebsocketTransport>();
-        int.TryParse(port, out websocketTransport.port);
+        var websocketTransport = manager?.GetComponent<SimpleWebTransport>();
+        ushort.TryParse(port, out websocketTransport.port);
 #endif
     }
 }

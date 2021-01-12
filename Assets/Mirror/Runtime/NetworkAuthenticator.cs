@@ -12,7 +12,7 @@ namespace Mirror
     /// <summary>
     /// Base class for implementing component-based authentication during the Connect phase
     /// </summary>
-    [HelpURL("https://mirror-networking.com/docs/Guides/Authentication.html")]
+    [HelpURL("https://mirror-networking.com/docs/Articles/Guides/Authentication.html")]
     public abstract class NetworkAuthenticator : MonoBehaviour
     {
         [Header("Event Listeners (optional)")]
@@ -38,10 +38,26 @@ namespace Mirror
         public virtual void OnStartServer() { }
 
         /// <summary>
+        /// Called on server from StopServer to reset the Authenticator
+        /// <para>Server message handlers should be unregistered in this method.</para>
+        /// </summary>
+        public virtual void OnStopServer() { }
+
+        /// <summary>
         /// Called on server from OnServerAuthenticateInternal when a client needs to authenticate
         /// </summary>
         /// <param name="conn">Connection to client.</param>
         public abstract void OnServerAuthenticate(NetworkConnection conn);
+
+        protected void ServerAccept(NetworkConnection conn)
+        {
+            OnServerAuthenticated.Invoke(conn);
+        }
+
+        protected void ServerReject(NetworkConnection conn)
+        {
+            conn.Disconnect();
+        }
 
         #endregion
 
@@ -54,10 +70,30 @@ namespace Mirror
         public virtual void OnStartClient() { }
 
         /// <summary>
+        /// Called on client from StopClient to reset the Authenticator
+        /// <para>Client message handlers should be unregistered in this method.</para>
+        /// </summary>
+        public virtual void OnStopClient() { }
+
+        /// <summary>
         /// Called on client from OnClientAuthenticateInternal when a client needs to authenticate
         /// </summary>
         /// <param name="conn">Connection of the client.</param>
         public abstract void OnClientAuthenticate(NetworkConnection conn);
+
+        protected void ClientAccept(NetworkConnection conn)
+        {
+            OnClientAuthenticated.Invoke(conn);
+        }
+
+        protected void ClientReject(NetworkConnection conn)
+        {
+            // Set this on the client for local reference
+            conn.isAuthenticated = false;
+
+            // disconnect the client
+            conn.Disconnect();
+        }
 
         #endregion
 
